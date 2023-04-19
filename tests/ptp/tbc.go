@@ -24,6 +24,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/helperptp"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/images"
@@ -32,8 +33,8 @@ import (
 const (
 	captureTIME = 5
 
-	ptpLogsProcessed = "/tmp/data.csv"
-	ptpLogs          = "/tmp/data.log"
+	ptpLogsProcessedFilename = "/tmp/data.csv"
+	ptpLogFilename           = "/tmp/data.log"
 )
 
 var _ = Describe("TBC", func() {
@@ -47,14 +48,24 @@ var _ = Describe("TBC", func() {
 		It("should pass G.8273.2 Noise Generation Requirements", func() {
 			// if/when I have enough logs
 			ptpContext := clients.NewContainerContext(ptpConfig.Namespace, ptpConfig.PodName, ptpConfig.Container)
-			ptpDevInfo := devices.GetPTPDeviceInfo(ptpConfig.InterfaceName, ptpContext)
+			ptpCollector := collectors.NewPTPCollector(ptpConfig.InterfaceName, ptpContext, ptpLogFilename)
+			defer ptpCollector.CleanUp()
+
+			// ptpDevInfo := devices.GetPTPDeviceInfo(ptpConfig.InterfaceName, ptpContext)
+			ptpDevInfo := ptpCollector.Get("device-info").(devices.PTPDeviceInfo)
 			if ptpDevInfo.VendorID != VendorIntel || ptpDevInfo.DeviceID != DeviceE810 {
 				Skip("NIC device is not based on E810")
 			}
-			err := devices.GetPtpDeviceLogsToFile(ptpContext, time.Second*captureTIME, ptpLogs)
+
+			err := ptpCollector.Start("logs")
 			Expect(err).NotTo(HaveOccurred())
 
-			err = helperptp.ParsePtpLogs(ptpLogs, ptpLogsProcessed)
+			// err := devices.GetPtpDeviceLogsToFile(ptpContext, time.Second*captureTIME, ptpLogs)
+			ptpLogs := ptpCollector.Get("logs").(devices.PTPLogsInterface)
+			err = devices.WritePTPLogsToFile(ptpLogs, time.Second*captureTIME, ptpLogFilename)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = helperptp.ParsePtpLogs(ptpLogFilename, ptpLogsProcessedFilename)
 			Expect(err).NotTo(HaveOccurred())
 
 			// define pod to calculate KPIs
@@ -63,7 +74,7 @@ var _ = Describe("TBC", func() {
 			Expect(NgenImageName).NotTo(BeNil())
 
 			// calculate KPIs using system command for now
-			out, err := exec.Command("podman", "run", "-it", "--rm", "-v", "/tmp:/tmp", NgenImageName, "-i", ptpLogsProcessed).Output() //nolint:stylecheck // TODO in next contribution
+			out, err := exec.Command("podman", "run", "-it", "--rm", "-v", "/tmp:/tmp", NgenImageName, "-i", ptpLogsProcessedFilename).Output() //nolint:stylecheck // TODO in next contribution
 			Expect(err).NotTo(HaveOccurred())
 			log.Info(string(out))
 		})

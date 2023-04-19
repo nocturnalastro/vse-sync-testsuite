@@ -153,3 +153,52 @@ func GetPtpDeviceLogsToFile(ctx clients.ContainerContext, timeout time.Duration,
 	writeLogs(reader, writer, timeout)
 	return nil
 }
+
+func WritePTPLogsToFile(ptpLogs PTPLogsInterface, timeout time.Duration, filename string) error {
+	// if the file does not exist, create it
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666) //nolint:gomnd // purpose of number is clear
+	if err != nil {
+		return fmt.Errorf("could not open file for logging: %w", err)
+	}
+	defer file.Close()
+	reader := bufio.NewReader(ptpLogs.LogFile)
+	writer := io.Writer(file)
+	writeLogs(reader, writer, timeout)
+	return nil
+}
+
+type PTPLogsInterface struct {
+	logFilename string
+	ctx         clients.ContainerContext
+	LogFile     io.ReadCloser
+}
+
+func NewPTPLogsInterface(ctx clients.ContainerContext, logFilename string) (ptpLogs PTPLogsInterface) {
+	return PTPLogsInterface{ctx: ctx, logFilename: logFilename}
+}
+
+func (ptpLogs PTPLogsInterface) Start() error {
+	clientset := clients.GetClientset()
+
+	logOptions := corev1.PodLogOptions{
+		Container: ptpLogs.ctx.GetContainerName(),
+		Follow:    true,
+	}
+	logRequest := clientset.K8sClient.CoreV1().Pods(ptpLogs.ctx.GetNamespace()).GetLogs(ptpLogs.ctx.GetPodName(), &logOptions)
+	stream, err := logRequest.Stream(context.TODO())
+	if err != nil {
+		return fmt.Errorf(
+			"could not retrieve log in ns=%s pod=%s, container=%s, err=%w",
+			ptpLogs.ctx.GetNamespace(),
+			ptpLogs.ctx.GetPodName(),
+			ptpLogs.ctx.GetContainerName(),
+			err,
+		)
+	}
+	ptpLogs.LogFile = stream
+	return nil
+}
+
+func (ptpLogs PTPLogsInterface) CleanUp() error {
+	return ptpLogs.LogFile.Close()
+}
