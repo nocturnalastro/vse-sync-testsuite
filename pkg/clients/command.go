@@ -22,6 +22,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
 )
@@ -33,12 +34,38 @@ type ContainerContext struct {
 	containerName string
 }
 
-func NewContainerContext(namespace, podName, containerName string) ContainerContext {
-	return ContainerContext{
+func (clientsholder *Clientset) findPodNameFromPrefix(namespace, prefix string) (string, error) {
+	pod_list, err := clientsholder.K8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+	pod_names := make([]string, 0)
+
+	for _, pod := range pod_list.Items {
+		if strings.HasPrefix(pod.Name, prefix) {
+			pod_names = append(pod_names, pod.Name)
+		}
+	}
+	if len(pod_names) == 0 {
+		return "", fmt.Errorf("no pod with prefix %v found in namespace %v", prefix, namespace)
+	} else if len(pod_names) > 1 {
+		return "", fmt.Errorf("too many (%v) pods with prefix %v found in namespace %v", len(pod_names), prefix, namespace)
+	} else { // IF len == 1
+		return pod_names[0], nil
+	}
+}
+
+func NewContainerContext(clientset *Clientset, namespace, podNamePrefix, containerName string) (ContainerContext, error) {
+	podName, err := clientset.findPodNameFromPrefix(namespace, podNamePrefix)
+	if err != nil {
+		return ContainerContext{}, err
+	}
+	cxt := ContainerContext{
 		namespace:     namespace,
 		podName:       podName,
 		containerName: containerName,
 	}
+	return cxt, nil
 }
 
 func (c *ContainerContext) GetNamespace() string {
