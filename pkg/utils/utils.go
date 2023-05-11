@@ -12,25 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ptp
+package utils
 
-import (
-	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/config"
-)
-
-const ptpCustomConfigKey = "ptp_tests_config"
-
-type PtpConfig struct {
-	Namespace     string `yaml:"namespace"`
-	PodName       string `yaml:"pod_name"`
-	Container     string `yaml:"container"`
-	InterfaceName string `yaml:"interface_name"`
-	TtyTimeout    int    `yaml:"tty_timeout"`
-	DpllReads     int    `yaml:"dpll_reads"`
-}
-
-var ptpConfig = PtpConfig{}
-
-func init() {
-	config.RegisterCustomConfig(ptpCustomConfigKey, &ptpConfig) //nolint:errcheck // Allowing unchecked error in this case
+func IfErrorPanic(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

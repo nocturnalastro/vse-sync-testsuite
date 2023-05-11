@@ -12,5 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// methods for processing ptp data
-package helperptp
+package main
+
+import (
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/cmd"
+)
+
+func main() {
+	cmd.Execute()
+}
