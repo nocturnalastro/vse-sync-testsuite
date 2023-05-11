@@ -15,41 +15,36 @@
 package devices
 
 import (
-	"bufio"
-	"context"
-	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 )
 
 type PTPDeviceInfo struct {
-	VendorID string
-	DeviceID string
-	TtyGNSS  string
+	VendorID string `json:"vendorId"`
+	DeviceID string `json:"deviceInfo"`
+	TtyGNSS  string `json:"ttyGNSS"` //nolint:tagliatelle // Because GNSS is an ancronym
 }
 
 type DevDPLLInfo struct {
-	State  string
-	Offset string
+	State  string `json:"state"`
+	Offset string `json:"offset"`
+}
+type GNSSTTYLines struct {
+	TTY   string `json:"tty"`
+	Lines string `json:"lines"`
 }
 
 func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (devInfo PTPDeviceInfo) {
-	// expecting a string like "../../../0000:86:00.0" here, just keep the last path section with filepath.Base
-	busID := commandWithPostprocessFunc(ctx, filepath.Base, []string{
-		"readlink", "/sys/class/net/" + interfaceName + "/device",
+	// Find the tty for the GNSS for this interface
+	GNSStty := commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
+		"ls", "/sys/class/net/" + interfaceName + "/device/gnss/",
 	})
 
-	devInfo.TtyGNSS = "/dev/" + busToGNSS(busID)
-	log.Debugf("got busID for %s:  %s", interfaceName, busID)
+	devInfo.TtyGNSS = "/dev/" + GNSStty
 	log.Debugf("got tty for %s:  %s", interfaceName, devInfo.TtyGNSS)
 
 	// expecting a string like 0x1593
@@ -66,15 +61,6 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (devIn
 	return
 }
 
-// transform a bus ID to an expected GNSS TTY name.
-// e.g. "0000:86:00.0" -> "ttyGNSS_8600", "0000:51:02.1" -> "ttyGNSS_5102"
-func busToGNSS(busID string) string {
-	log.Debugf("convert %s to GNSS tty", busID)
-	parts := strings.Split(busID, ":")
-	ttyGNSS := parts[1] + strings.Split(parts[2], ".")[0]
-	return "ttyGNSS_" + ttyGNSS
-}
-
 func commandWithPostprocessFunc(ctx clients.ContainerContext, cleanupFunc func(string) string, command []string) (result string) { //nolint:lll // allow slightly long function definition
 	clientset := clients.GetClientset()
 	stdout, _, err := clientset.ExecCommandContainer(ctx, command)
@@ -88,10 +74,14 @@ func commandWithPostprocessFunc(ctx clients.ContainerContext, cleanupFunc func(s
 }
 
 // Read lines from the ttyGNSS of the passed devInfo.
-func ReadTtyGNSS(ctx clients.ContainerContext, devInfo PTPDeviceInfo, lines, timeoutSeconds int) string {
-	return commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
+func ReadTtyGNSS(ctx clients.ContainerContext, devInfo PTPDeviceInfo, lines, timeoutSeconds int) GNSSTTYLines {
+	content := commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
 		"timeout", strconv.Itoa(timeoutSeconds), "head", "-n", strconv.Itoa(lines), devInfo.TtyGNSS,
 	})
+	return GNSSTTYLines{
+		TTY:   devInfo.TtyGNSS,
+		Lines: content,
+	}
 }
 
 // GetDevDPLLInfo returns the device DPLL info for an interface.
@@ -103,53 +93,4 @@ func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (dpllInf
 		"cat", "/sys/class/net/" + interfaceName + "/device/dpll_1_offset",
 	})
 	return
-}
-
-// Write Logs in file. This will write a lot of data, so bufio.Writer will be recommended
-func writeLogs(reader *bufio.Reader, writer io.Writer, timeout time.Duration) {
-	if _, ok := writer.(*bufio.Writer); !ok {
-		writer = bufio.NewWriter(writer)
-	}
-	for start := time.Now(); time.Since(start) < timeout; {
-		str, readErr := reader.ReadString('\n')
-		if readErr == io.EOF {
-			break
-		}
-		_, err := writer.Write([]byte(str))
-		if err != nil {
-			return
-		}
-	}
-}
-
-// GetPtpLogs2File writes in a file the logs for a given pod move to ptplogs
-func GetPtpDeviceLogsToFile(ctx clients.ContainerContext, timeout time.Duration, filename string) error {
-	clientset := clients.GetClientset()
-	// if the file does not exist, create it
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666) //nolint:gomnd // purpose of number is clear
-	if err != nil {
-		return fmt.Errorf("could not open file for logging: %w", err)
-	}
-	defer file.Close()
-	// get the logs
-	logOptions := corev1.PodLogOptions{
-		Container: ctx.GetContainerName(),
-		Follow:    true,
-	}
-	logRequest := clientset.K8sClient.CoreV1().Pods(ctx.GetNamespace()).GetLogs(ctx.GetPodName(), &logOptions)
-	stream, err := logRequest.Stream(context.TODO())
-	if err != nil {
-		return fmt.Errorf(
-			"could not retrieve log in ns=%s pod=%s, container=%s, err=%w",
-			ctx.GetNamespace(),
-			ctx.GetPodName(),
-			ctx.GetContainerName(),
-			err,
-		)
-	}
-	defer stream.Close()
-	reader := bufio.NewReader(stream)
-	writer := io.Writer(file)
-	writeLogs(reader, writer, timeout)
-	return nil
 }
