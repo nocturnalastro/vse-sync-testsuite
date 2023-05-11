@@ -12,8 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Images encapsulates description of, and low-level interaction with, the images.
+package logging
 
-// It contains enough information to allow a test suite to pull the necessary auxiliary
-// images needed to run tests requiring the creation of additional pods.
-package images
+import (
+	"io"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
+)
+
+func SetupLogging(logLevel string, out io.Writer) {
+	log.SetOutput(out)
+	level, err := log.ParseLevel(logLevel)
+	utils.IfErrorPanic(err)
+	log.SetLevel(level)
+}
