@@ -24,18 +24,18 @@ import (
 )
 
 type PTPDeviceInfo struct {
-	VendorID string
-	DeviceID string
-	TtyGNSS  string
+	VendorID string `json:"vendorId"`
+	DeviceID string `json:"deviceInfo"`
+	TtyGNSS  string `json:"ttyGNSS"` //nolint:tagliatelle // Because GNSS is an ancronym
 }
 
 type DevDPLLInfo struct {
-	State  string
-	Offset string
+	State  string `json:"state"`
+	Offset string `json:"offset"`
 }
 type GNSSTTYLines struct {
-	TTY   string
-	Lines string
+	TTY   string `json:"tty"`
+	Lines string `json:"lines"`
 }
 
 func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (devInfo PTPDeviceInfo) {
@@ -45,9 +45,7 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (devIn
 	})
 
 	devInfo.TtyGNSS = "/dev/" + GNSStty
-	// "/dev/" + busToGNSS(busID)
-	// log.Debugf("got busID for %s:  %s", interfaceName, busID)
-	// log.Debugf("got tty for %s:  %s", interfaceName, devInfo.TtyGNSS)
+	log.Debugf("got tty for %s:  %s", interfaceName, devInfo.TtyGNSS)
 
 	// expecting a string like 0x1593
 	devInfo.DeviceID = commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
@@ -62,15 +60,6 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (devIn
 	log.Debugf("got vendorID for %s:  %s", interfaceName, devInfo.VendorID)
 	return
 }
-
-// transform a bus ID to an expected GNSS TTY name.
-// e.g. "0000:86:00.0" -> "ttyGNSS_8600", "0000:51:02.1" -> "ttyGNSS_5102"
-// func busToGNSS(busID string) string {
-// 	log.Debugf("convert %s to GNSS tty", busID)
-// 	parts := strings.Split(busID, ":")
-// 	ttyGNSS := parts[1] + strings.Split(parts[2], ".")[0]
-// 	return "ttyGNSS_" + ttyGNSS
-// }
 
 func commandWithPostprocessFunc(ctx clients.ContainerContext, cleanupFunc func(string) string, command []string) (result string) { //nolint:lll // allow slightly long function definition
 	clientset := clients.GetClientset()

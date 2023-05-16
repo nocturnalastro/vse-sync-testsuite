@@ -35,37 +35,42 @@ type ContainerContext struct {
 }
 
 func (clientsholder *Clientset) findPodNameFromPrefix(namespace, prefix string) (string, error) {
-	pod_list, err := clientsholder.K8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	podList, err := clientsholder.K8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to getting pod list: %w", err)
 	}
-	pod_names := make([]string, 0)
+	podNames := make([]string, 0)
 
-	for _, pod := range pod_list.Items {
-		if strings.HasPrefix(pod.Name, prefix) {
-			pod_names = append(pod_names, pod.Name)
+	for i := range podList.Items {
+		if strings.HasPrefix(podList.Items[i].Name, prefix) {
+			podNames = append(podNames, podList.Items[i].Name)
 		}
 	}
-	if len(pod_names) == 0 {
+
+	switch len(podNames) {
+	case 0:
 		return "", fmt.Errorf("no pod with prefix %v found in namespace %v", prefix, namespace)
-	} else if len(pod_names) > 1 {
-		return "", fmt.Errorf("too many (%v) pods with prefix %v found in namespace %v", len(pod_names), prefix, namespace)
-	} else { // IF len == 1
-		return pod_names[0], nil
+	case 1:
+		return podNames[0], nil
+	default:
+		return "", fmt.Errorf("too many (%v) pods with prefix %v found in namespace %v", len(podNames), prefix, namespace)
 	}
 }
 
-func NewContainerContext(clientset *Clientset, namespace, podNamePrefix, containerName string) (ContainerContext, error) {
+func NewContainerContext(
+	clientset *Clientset,
+	namespace, podNamePrefix, containerName string,
+) (ContainerContext, error) {
 	podName, err := clientset.findPodNameFromPrefix(namespace, podNamePrefix)
 	if err != nil {
 		return ContainerContext{}, err
 	}
-	cxt := ContainerContext{
+	ctx := ContainerContext{
 		namespace:     namespace,
 		podName:       podName,
 		containerName: containerName,
 	}
-	return cxt, nil
+	return ctx, nil
 }
 
 func (c *ContainerContext) GetNamespace() string {

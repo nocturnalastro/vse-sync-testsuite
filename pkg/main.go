@@ -1,3 +1,17 @@
+// Copyright 2023 Red Hat, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -42,6 +56,7 @@ func setupLogging(logLevel string, out io.Writer) {
 	log.SetLevel(level)
 }
 
+//nolint:ireturn // The point of this function is to return a callback
 func selectCollectorCallback(outputFile string) collectors.Callback {
 	if outputFile != "" {
 		callback, err := collectors.NewFileCallback(outputFile)
@@ -66,35 +81,32 @@ func main() {
 	callback := selectCollectorCallback(cmd.OutputFile)
 	ptpCollector, err := collectors.NewPTPCollector(cmd.PTPInterface, ptpContext, cmd.PollRate, callback)
 	ifErrorPanic(err)
-	err = ptpCollector.Start("all")
+	err = ptpCollector.Start(collectors.All)
 	ifErrorPanic(err)
 	quit := getQuitChannel()
 
 out:
-	for i := 1; cmd.PollCount < 0 || i <= cmd.PollCount; i++ {
+	for numberOfPolls := 1; cmd.PollCount < 0 || numberOfPolls <= cmd.PollCount; numberOfPolls++ {
 		select {
 		case <-quit:
-			log.Info("ShutingDown")
-			ptpCollector.CleanUp("all")
-			callback.CleanUp()
+			log.Info("Killed shuting down")
 			break out
 		default:
 			if ptpCollector.ShouldPoll() {
 				err := ptpCollector.Poll()
 				if err != nil {
 					// TODO: handle errors (better)
-					log.Debug(err)
+					log.Error(err)
 				}
 			}
-
 			time.Sleep(time.Duration(1/cmd.PollRate) * time.Second)
 		}
-
-		// If last iteration we should clean up
-		if i >= (cmd.PollCount - 1) {
-			ptpCollector.CleanUp("all")
-		}
 	}
+
+	errColletor := ptpCollector.CleanUp(collectors.All)
+	errCallback := callback.CleanUp()
+	ifErrorPanic(errColletor)
+	ifErrorPanic(errCallback)
 
 	os.Exit(0)
 }
