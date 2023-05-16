@@ -3,10 +3,15 @@ package collectors
 type CollectedData interface{}
 
 type Collector interface {
-	// invese_poll_rate float64
-	// callback         Callback
-	// running          []string
-	// last_poll        time.Time
+	// interfaceName   string
+	// ctx             clients.ContainerContext
+	// DataTypes       [3]string
+	// data            map[string]interface{}
+	// inversePollRate float64
+	// callback        Callback
+
+	// running  map[string]bool
+	// lastPoll time.Time
 
 	Start(key string) error // Links collector to monitoring stack if required
 	// Get() (CollectedData, error) // Returns an interface to retreive data from the monitoring stack
