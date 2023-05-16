@@ -6,6 +6,7 @@ package cmd
 import (
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +16,7 @@ var (
 	PollCount    int
 	PollRate     float64
 	PTPInterface string
+	LogLevel     string
 
 	rootCmd = &cobra.Command{
 		Use:   "vse-sync-testsuite",
@@ -38,8 +40,9 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&KubeConfig, "kubeconfig", "", "kubeconfig file path")
-	rootCmd.PersistentFlags().IntVar(&PollCount, "count", 10, "number of queries the cluster (-1) means infinite")
-	rootCmd.PersistentFlags().Float64Var(&PollRate, "rate", 1, "poll rate for querying the cluster")
-	rootCmd.PersistentFlags().StringVar(&PTPInterface, "interface", "", "ptp interface name")
+	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "k", "", "kubeconfig file path")
+	rootCmd.PersistentFlags().IntVarP(&PollCount, "count", "c", 10, "number of queries the cluster (-1) means infinite")
+	rootCmd.PersistentFlags().Float64VarP(&PollRate, "rate", "r", 1, "poll rate for querying the cluster")
+	rootCmd.PersistentFlags().StringVarP(&PTPInterface, "interface", "i", "", "ptp interface name")
+	rootCmd.PersistentFlags().StringVarP(&LogLevel, "verbosity", "v", log.WarnLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,12 +36,16 @@ func getQuitChannel() chan os.Signal {
 	return quit
 }
 
+func setupLogging(logLevel string, out io.Writer) {
+	log.SetOutput(out)
+	level, err := log.ParseLevel(logLevel)
+	ifErrorPanic(err)
+	log.SetLevel(level)
+}
+
 func main() {
 	cmd.Execute()
-
-	// // TODO make this config
-	// log.SetOutput(os.Stdout)
-	// log.SetLevel(log.DebugLevel)
+	setupLogging(cmd.LogLevel, os.Stdout)
 
 	log.Debugf("Kubeconfig: %s\n", cmd.KubeConfig)
 	log.Debugf("PollRate: %v\n", cmd.PollRate)
@@ -54,6 +59,7 @@ func main() {
 	err = ptpCollector.Start("all")
 	ifErrorPanic(err)
 	quit := getQuitChannel()
+
 out:
 	for i := 1; cmd.PollCount < 0 || i <= cmd.PollCount; i++ {
 		select {
