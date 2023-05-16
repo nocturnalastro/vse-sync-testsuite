@@ -31,8 +31,7 @@ func ifErrorPanic(err error) {
 func getQuitChannel() chan os.Signal {
 	// Allow ourselves to handle shut down gracefully
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT)
-	signal.Notify(quit, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	return quit
 }
 
@@ -41,6 +40,16 @@ func setupLogging(logLevel string, out io.Writer) {
 	level, err := log.ParseLevel(logLevel)
 	ifErrorPanic(err)
 	log.SetLevel(level)
+}
+
+func selectCollectorCallback(outputFile string) collectors.Callback {
+	if outputFile != "" {
+		callback, err := collectors.NewFileCallback(outputFile)
+		ifErrorPanic(err)
+		return callback
+	} else {
+		return collectors.StdoutCallBack{}
+	}
 }
 
 func main() {
@@ -54,7 +63,8 @@ func main() {
 	clientset := clients.GetClientset(cmd.KubeConfig)
 	ptpContext, err := clients.NewContainerContext(clientset, PTPNamespace, PodNamePrefix, PTPContainer)
 	ifErrorPanic(err)
-	ptpCollector, err := collectors.NewPTPCollector(cmd.PTPInterface, ptpContext, cmd.PollRate, collectors.BasicCallBack{})
+	callback := selectCollectorCallback(cmd.OutputFile)
+	ptpCollector, err := collectors.NewPTPCollector(cmd.PTPInterface, ptpContext, cmd.PollRate, callback)
 	ifErrorPanic(err)
 	err = ptpCollector.Start("all")
 	ifErrorPanic(err)
@@ -66,6 +76,7 @@ out:
 		case <-quit:
 			log.Info("ShutingDown")
 			ptpCollector.CleanUp("all")
+			callback.CleanUp()
 			break out
 		default:
 			if ptpCollector.ShouldPoll() {

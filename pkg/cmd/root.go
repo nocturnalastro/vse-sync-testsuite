@@ -17,6 +17,7 @@ var (
 	PollRate     float64
 	PTPInterface string
 	LogLevel     string
+	OutputFile   string
 
 	rootCmd = &cobra.Command{
 		Use:   "vse-sync-testsuite",
@@ -45,4 +46,5 @@ func init() {
 	rootCmd.PersistentFlags().Float64VarP(&PollRate, "rate", "r", 1, "poll rate for querying the cluster")
 	rootCmd.PersistentFlags().StringVarP(&PTPInterface, "interface", "i", "", "ptp interface name")
 	rootCmd.PersistentFlags().StringVarP(&LogLevel, "verbosity", "v", log.WarnLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
+	rootCmd.PersistentFlags().StringVarP(&OutputFile, "output", "o", "", "Output file path")
 }
