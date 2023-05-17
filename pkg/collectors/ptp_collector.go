@@ -143,7 +143,10 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) {
 	default:
 		return nil, ptpDev.getNotCollectableError(key)
 	}
-	return line, fmt.Errorf("failed to marshall line(%v) in PTP collector: %w", key, err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall line(%v) in PTP collector: %w", key, err)
+	}
+	return line, nil
 }
 
 // Poll collects information from the cluster then
