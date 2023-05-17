@@ -56,10 +56,16 @@ type FileCallBack struct {
 func (c FileCallBack) Call(collectorName, datatype, line string) error {
 	output := fmt.Sprintf("UTC:%s, %v:%v, %v\n", time.Now().UTC(), collectorName, datatype, line)
 	_, err := c.fileHandle.WriteString(output)
-	return fmt.Errorf("failed to write to file in callback: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to write to file in callback: %w", err)
+	}
+	return nil
 }
 
 func (c FileCallBack) CleanUp() error {
 	err := c.fileHandle.Close()
-	return fmt.Errorf("failed to close file handle in callback: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to close file handle in callback: %w", err)
+	}
+	return nil
 }
