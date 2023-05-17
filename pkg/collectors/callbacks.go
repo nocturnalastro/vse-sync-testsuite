@@ -32,7 +32,7 @@ type StdoutCallBack struct {
 }
 
 func (c StdoutCallBack) Call(collectorName, datatype, line string) error {
-	fmt.Printf("%v:%v, %v\n", collectorName, datatype, line) //nolint:forbidigo // the point of this callback is to printLn
+	fmt.Printf("%v:%v, %v\n", collectorName, datatype, line) //nolint:forbidigo // the point of this callback is to print
 	return nil
 }
 
