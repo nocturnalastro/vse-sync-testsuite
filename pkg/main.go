@@ -93,10 +93,10 @@ out:
 			break out
 		default:
 			if ptpCollector.ShouldPoll() {
-				err := ptpCollector.Poll()
-				if err != nil {
+				errors := ptpCollector.Poll()
+				if len(errors) > 0 {
 					// TODO: handle errors (better)
-					log.Error(err)
+					log.Error(errors)
 				}
 			}
 			time.Sleep(time.Duration(1/cmd.PollRate) * time.Second)
