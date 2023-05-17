@@ -26,7 +26,6 @@ const (
 	defaultPollRate float64 = 1.0
 )
 
-// rootCmd represents the base command when called without any subcommands
 var (
 	KubeConfig   string
 	PollCount    int
@@ -35,17 +34,22 @@ var (
 	LogLevel     string
 	OutputFile   string
 
+	// rootCmd represents the base command when called without any subcommands
 	rootCmd = &cobra.Command{
 		Use:   "vse-sync-testsuite",
 		Short: "A monitoring tool for PTP related metrics",
-		Long: `A monitoring tool for PTP related metrics:
-			kubeconfig: path to kubeconfig of target system
-			count The number of times the cluster will be queried (-1 means infinite)
-			rate: The polling rate in seconds
-			interface: The interface the PTP configured on
-		`,
+		Long:  `A monitoring tool for PTP related metrics.`,
 	}
 )
+
+// Required:
+// kubeconfig (-k): Path to kubeconfig of target system
+// interface (-i):  The interface the PTP configured on
+// Optional:
+// count (-c):      The number of times the cluster will be queried (-1 means infinite)
+// rate (-r):       The polling rate in seconds
+// output (-o):     Path to the file to write results to (defaults to stdout)
+// verbosity (-v):  Log level (debug, info, warn, error, fatal, panic)
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -57,28 +61,37 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "k", "", "kubeconfig file path")
+	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "k", "", "Path to the kubeconfig file")
+	err := rootCmd.MarkFlagRequired("kubeconfig")
+	if err != nil {
+		panic(err)
+	}
+	rootCmd.PersistentFlags().StringVarP(&PTPInterface, "interface", "i", "", "Name of the PTP interface")
+	err = rootCmd.MarkFlagRequired("interface")
+	if err != nil {
+		panic(err)
+	}
+
 	rootCmd.PersistentFlags().IntVarP(
 		&PollCount,
 		"count",
 		"c",
 		defaultCount,
-		"number of queries the cluster (-1) means infinite",
+		"Number of queries the cluster (-1) means infinite",
 	)
 	rootCmd.PersistentFlags().Float64VarP(
 		&PollRate,
 		"rate",
 		"r",
 		defaultPollRate,
-		"poll rate for querying the cluster",
+		"Poll rate for querying the cluster",
 	)
-	rootCmd.PersistentFlags().StringVarP(&PTPInterface, "interface", "i", "", "ptp interface name")
 	rootCmd.PersistentFlags().StringVarP(
 		&LogLevel,
 		"verbosity",
 		"v",
 		log.WarnLevel.String(),
-		"Log level (debug, info, warn, error, fatal, panic",
+		"Log level (debug, info, warn, error, fatal, panic)",
 	)
-	rootCmd.PersistentFlags().StringVarP(&OutputFile, "output", "o", "", "Output file path")
+	rootCmd.PersistentFlags().StringVarP(&OutputFile, "output", "o", "", "Path to the output file")
 }
