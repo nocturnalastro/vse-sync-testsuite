@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -36,7 +37,6 @@ var (
 )
 
 func ifErrorPanic(err error) {
-	// As this is our only collector then lets crash out
 	if err != nil {
 		panic(err)
 	}
@@ -56,14 +56,13 @@ func setupLogging(logLevel string, out io.Writer) {
 	log.SetLevel(level)
 }
 
-//nolint:ireturn // The point of this function is to return a callback
-func selectCollectorCallback(outputFile string) collectors.Callback {
+//nolint:ireturn // The point of this function is to return a callback but which one is dependant on the input
+func selectCollectorCallback(outputFile string) (collectors.Callback, error) {
 	if outputFile != "" {
 		callback, err := collectors.NewFileCallback(outputFile)
-		ifErrorPanic(err)
-		return callback
+		return callback, fmt.Errorf("failed to create callback %w", err)
 	} else {
-		return collectors.StdoutCallBack{}
+		return collectors.StdoutCallBack{}, nil
 	}
 }
 
@@ -78,7 +77,8 @@ func main() {
 	clientset := clients.GetClientset(cmd.KubeConfig)
 	ptpContext, err := clients.NewContainerContext(clientset, PTPNamespace, PodNamePrefix, PTPContainer)
 	ifErrorPanic(err)
-	callback := selectCollectorCallback(cmd.OutputFile)
+	callback, err := selectCollectorCallback(cmd.OutputFile)
+	ifErrorPanic(err)
 	ptpCollector, err := collectors.NewPTPCollector(cmd.PTPInterface, ptpContext, cmd.PollRate, callback)
 	ifErrorPanic(err)
 	err = ptpCollector.Start(collectors.All)
