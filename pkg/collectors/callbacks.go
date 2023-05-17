@@ -17,6 +17,7 @@ package collectors
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 const (
@@ -32,7 +33,7 @@ type StdoutCallBack struct {
 }
 
 func (c StdoutCallBack) Call(collectorName, datatype, line string) error {
-	fmt.Printf("%v:%v, %v\n", collectorName, datatype, line) //nolint:forbidigo // the point of this callback is to print
+	fmt.Printf("UTC:%s, %v:%v, %v\n", time.Now().UTC(), collectorName, datatype, line) //nolint:forbidigo // the point of this callback is to print
 	return nil
 }
 
@@ -53,7 +54,7 @@ type FileCallBack struct {
 }
 
 func (c FileCallBack) Call(collectorName, datatype, line string) error {
-	output := fmt.Sprintf("%v:%v, %v\n", collectorName, datatype, line)
+	output := fmt.Sprintf("UTC:%s, %v:%v, %v\n", time.Now().UTC(), collectorName, datatype, line)
 	_, err := c.fileHandle.WriteString(output)
 	return fmt.Errorf("failed to write to file in callback: %w", err)
 }
