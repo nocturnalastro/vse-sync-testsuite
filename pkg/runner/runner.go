@@ -52,6 +52,10 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 	}
 }
 
+var (
+	collectorsToInit = [1]string{"PTP"}
+)
+
 func setupLogging(logLevel string, out io.Writer) {
 	log.SetOutput(out)
 	level, err := log.ParseLevel(logLevel)
@@ -66,18 +70,18 @@ func setupCollectors(
 ) []collectors.Collector {
 	collecterInstances := make([]collectors.Collector, 0)
 	var newCollector collectors.Collector
-	for key, constuctor := range collectors.Registry {
-		switch key {
+
+	constuctor := collectors.CollectionConstuctor{
+		Callback:     callback,
+		PTPInterface: ptpInterface,
+		Clientset:    clientset,
+		PollRate:     pollRate,
+	}
+
+	for _, constuctorName := range collectorsToInit {
+		switch constuctorName {
 		case "PTP":
-			ptpConstuctor, ok := constuctor.(collectors.PTPCollectorConstuctor)
-			if !ok {
-				panic("Failed to get collector constructor")
-			}
-			ptpConstuctor.Callback = callback
-			ptpConstuctor.PTPInterface = ptpInterface
-			ptpConstuctor.Clientset = clientset
-			ptpConstuctor.PollRate = pollRate
-			NewPTPCollector, err := ptpConstuctor.NewCollector() //nolint:govet // TODO clean this up
+			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
 			ifErrorPanic(err)
 			newCollector, _ = NewPTPCollector.(collectors.Collector)
 		default:

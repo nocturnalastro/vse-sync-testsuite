@@ -14,6 +14,11 @@
 
 package collectors
 
+import (
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
+)
+
 type CollectedData interface{}
 
 type Collector interface {
@@ -35,16 +40,10 @@ type Collector interface {
 	CleanUp(key string) error   // Unlinks collecter from monitoring stack if required
 }
 
-var Registry map[string]CollectorConstructor
-
-func Register(key string, constuctor CollectorConstructor) {
-	Registry[key] = constuctor
-}
-
-func init() {
-	Registry = make(map[string]CollectorConstructor)
-}
-
-type CollectorConstructor interface {
-	NewCollector() (interface{}, error)
+// A union of all values required to be passed into all constuctions
+type CollectionConstuctor struct {
+	Callback     callbacks.Callback
+	Clientset    *clients.Clientset
+	PTPInterface string
+	PollRate     float64
 }

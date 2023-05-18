@@ -157,14 +157,7 @@ func (ptpDev *PTPCollector) CleanUp(key string) error {
 	return nil
 }
 
-type PTPCollectorConstuctor struct {
-	Callback     callbacks.Callback
-	Clientset    *clients.Clientset
-	PTPInterface string
-	PollRate     float64
-}
-
-func (constuctor PTPCollectorConstuctor) NewCollector() (interface{}, error) {
+func (constuctor *CollectionConstuctor) NewPTPCollector() (interface{}, error) {
 	ctx, err := clients.NewContainerContext(constuctor.Clientset, PTPNamespace, PodNamePrefix, PTPContainer)
 	if err != nil {
 		return PTPCollector{}, fmt.Errorf("could not create container context %w", err)
@@ -196,8 +189,4 @@ func (constuctor PTPCollectorConstuctor) NewCollector() (interface{}, error) {
 	}
 
 	return collector, nil
-}
-
-func init() {
-	Register("PTP", PTPCollectorConstuctor{})
 }
