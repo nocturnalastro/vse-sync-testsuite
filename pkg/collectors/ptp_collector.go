@@ -191,7 +191,7 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		running:         running,
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
-		lastPoll:        time.Now().Add(-time.Duration(1e9 * inversePollRate)), // Subtract off a polling time so the first poll hits
+		lastPoll:        time.Now().Add(-time.Duration(float64(time.Second.Milliseconds()) * inversePollRate)), // Subtract off a polling time so the first poll hits
 	}
 
 	return &collector, nil
