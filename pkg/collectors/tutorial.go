@@ -54,5 +54,6 @@ func (anouncer *AnouncementCollector) CleanUp(key string) error {
 }
 
 func (constuctor *CollectionConstuctor) NewAnouncementCollector() (*AnouncementCollector, error) {
-	return &AnouncementCollector{msg: constuctor.Msg}, nil
+	anouncer := AnouncementCollector{callback: constuctor.Callback, msg: constuctor.Msg}
+	return &anouncer, nil
 }
