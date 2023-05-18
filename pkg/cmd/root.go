@@ -19,6 +19,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/runner"
 )
 
 const (
@@ -27,18 +29,21 @@ const (
 )
 
 var (
-	KubeConfig   string
-	PollCount    int
-	PollRate     float64
-	PTPInterface string
+	kubeConfig   string
+	pollCount    int
+	pollRate     float64
+	ptpInterface string
+	outputFile   string
 	LogLevel     string
-	OutputFile   string
 
 	// rootCmd represents the base command when called without any subcommands
 	rootCmd = &cobra.Command{
 		Use:   "vse-sync-testsuite",
 		Short: "A monitoring tool for PTP related metrics",
 		Long:  `A monitoring tool for PTP related metrics.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			runner.Run(kubeConfig, outputFile, pollCount, pollRate, ptpInterface)
+		},
 	}
 )
 
@@ -61,26 +66,26 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "k", "", "Path to the kubeconfig file")
+	rootCmd.PersistentFlags().StringVarP(&kubeConfig, "kubeconfig", "k", "", "Path to the kubeconfig file")
 	err := rootCmd.MarkPersistentFlagRequired("kubeconfig")
 	if err != nil {
 		panic(err)
 	}
-	rootCmd.PersistentFlags().StringVarP(&PTPInterface, "interface", "i", "", "Name of the PTP interface")
+	rootCmd.PersistentFlags().StringVarP(&ptpInterface, "interface", "i", "", "Name of the PTP interface")
 	err = rootCmd.MarkPersistentFlagRequired("interface")
 	if err != nil {
 		panic(err)
 	}
 
 	rootCmd.PersistentFlags().IntVarP(
-		&PollCount,
+		&pollCount,
 		"count",
 		"c",
 		defaultCount,
 		"Number of queries the cluster (-1) means infinite",
 	)
 	rootCmd.PersistentFlags().Float64VarP(
-		&PollRate,
+		&pollRate,
 		"rate",
 		"r",
 		defaultPollRate,
@@ -93,5 +98,5 @@ func init() {
 		log.WarnLevel.String(),
 		"Log level (debug, info, warn, error, fatal, panic)",
 	)
-	rootCmd.PersistentFlags().StringVarP(&OutputFile, "output", "o", "", "Path to the output file")
+	rootCmd.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "Path to the output file")
 }
