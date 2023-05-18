@@ -53,7 +53,7 @@ type CollectorRunner struct {
 
 func NewCollectorRunner() CollectorRunner {
 	collectorNames := make([]string, 0)
-	collectorNames = append(collectorNames, "PTP", "Anouncer")
+	collectorNames = append(collectorNames, "PTP")
 	return CollectorRunner{
 		collecterInstances: make([]*collectors.Collector, 0),
 		collectorNames:     collectorNames,
@@ -81,11 +81,6 @@ func (runner *CollectorRunner) initialise(
 			utils.IfErrorPanic(err)
 			newCollector = NewPTPCollector
 			log.Debug("PTP Collector")
-		case "Anouncer": //nolint: goconst // This is just for ilustrative purposes
-			NewAnouncerCollector, err := constuctor.NewAnouncementCollector()
-			utils.IfErrorPanic(err)
-			newCollector = NewAnouncerCollector
-			log.Debug("Anouncer Collector")
 		default:
 			panic("Unknown collector")
 		}
