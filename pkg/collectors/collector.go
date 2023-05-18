@@ -40,3 +40,7 @@ var Registry map[string]*interface{}
 func Register(key string, newCollectorFunc interface{}) {
 	Registry[key] = &newCollectorFunc
 }
+
+func init() {
+	Registry = make(map[string]*interface{})
+}
