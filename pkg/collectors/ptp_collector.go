@@ -21,13 +21,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors/devices"
 )
 
 type PTPCollector struct {
 	lastPoll        time.Time
-	callback        Callback
+	callback        callbacks.Callback
 	data            map[string]interface{}
 	running         map[string]bool
 	DataTypes       [3]string
@@ -44,6 +45,10 @@ const (
 	DLLInfo    = "dll-info"
 	GNNSSTTY   = "gnss-tty"
 	All        = "all"
+
+	PTPNamespace  = "openshift-ptp"
+	PodNamePrefix = "linuxptp-daemon-"
+	PTPContainer  = "linuxptp-daemon-container"
 )
 
 var collectables = [3]string{
@@ -53,16 +58,21 @@ var collectables = [3]string{
 }
 
 func NewPTPCollector(
-	interfaceName string,
-	ctx clients.ContainerContext,
+	ptpInterface string,
 	pollRate float64,
-	callback Callback,
+	clientset *clients.Clientset,
+	callback callbacks.Callback,
 ) (PTPCollector, error) {
+	ctx, err := clients.NewContainerContext(clientset, PTPNamespace, PodNamePrefix, PTPContainer)
+	if err != nil {
+		return PTPCollector{}, fmt.Errorf("could not create container context %w", err)
+	}
+
 	data := make(map[string]interface{})
 	running := make(map[string]bool)
 
-	data[DeivceInfo] = devices.GetPTPDeviceInfo(interfaceName, ctx)
-	data[DLLInfo] = devices.GetDevDPLLInfo(ctx, interfaceName)
+	data[DeivceInfo] = devices.GetPTPDeviceInfo(ptpInterface, ctx)
+	data[DLLInfo] = devices.GetDevDPLLInfo(ctx, ptpInterface)
 
 	ptpDevInfo, ok := data[DeivceInfo].(devices.PTPDeviceInfo)
 	if !ok {
@@ -73,7 +83,7 @@ func NewPTPCollector(
 	}
 
 	collector := PTPCollector{
-		interfaceName:   interfaceName,
+		interfaceName:   ptpInterface,
 		ctx:             ctx,
 		DataTypes:       collectables,
 		data:            data,
