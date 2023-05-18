@@ -88,6 +88,8 @@ func (ptpDev *PTPCollector) Start(key string) error {
 
 // Checks to see if the enou
 func (ptpDev *PTPCollector) ShouldPoll() bool {
+	log.Debugf("since: %v", time.Since(ptpDev.lastPoll).Seconds())
+	log.Debugf("wait: %v", ptpDev.inversePollRate)
 	return time.Since(ptpDev.lastPoll).Seconds() >= ptpDev.inversePollRate
 }
 
@@ -139,6 +141,7 @@ func (ptpDev *PTPCollector) Poll() []error {
 			}
 		}
 	}
+	ptpDev.lastPoll = time.Now()
 	return errorsToReturn
 }
 
@@ -178,6 +181,8 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		return &PTPCollector{}, fmt.Errorf("NIC device is not based on E810")
 	}
 
+	inversePollRate := 1.0 / constuctor.PollRate
+
 	collector := PTPCollector{
 		interfaceName:   constuctor.PTPInterface,
 		ctx:             ctx,
@@ -185,8 +190,8 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		data:            data,
 		running:         running,
 		callback:        constuctor.Callback,
-		inversePollRate: 1.0 / constuctor.PollRate,
-		lastPoll:        time.Now(),
+		inversePollRate: inversePollRate,
+		lastPoll:        time.Now().Add(-time.Duration(1e9 * inversePollRate)), // Subtract off a polling time so the first poll hits
 	}
 
 	return &collector, nil

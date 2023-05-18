@@ -119,6 +119,8 @@ out:
 			break out
 		default:
 			for _, collector := range collecterInstances {
+				log.Debugf("Running collector: %v", collector)
+
 				if (*collector).ShouldPoll() {
 					log.Debugf("poll %v", collector)
 					errors := (*collector).Poll()
@@ -128,7 +130,7 @@ out:
 					}
 				}
 			}
-			time.Sleep(time.Duration(1/pollRate) * time.Second)
+			time.Sleep(time.Duration(1e9 / pollRate))
 		}
 	}
 	for _, collector := range collecterInstances {
