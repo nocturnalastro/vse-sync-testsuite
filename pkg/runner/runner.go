@@ -69,15 +69,19 @@ func setupCollectors(
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
 			utils.IfErrorPanic(err)
 			newCollector = NewPTPCollector
+			log.Debug("PTP Collector")
 		case "Anouncer": //nolint: goconst // This is just for ilustrative purposes
 			NewAnouncerCollector, err := constuctor.NewAnouncementCollector()
 			utils.IfErrorPanic(err)
 			newCollector = NewAnouncerCollector
+			log.Debug("Anouncer Collector")
 		default:
+			newCollector = nil
 			panic("Unknown collector")
 		}
 		if newCollector != nil {
 			collecterInstances = append(collecterInstances, &newCollector)
+			log.Debug("Added collector %T", newCollector)
 		}
 	}
 	return collecterInstances
