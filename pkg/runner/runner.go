@@ -153,7 +153,7 @@ out:
 			break out
 		default:
 			runner.poll()
-			time.Sleep(time.Duration(float64(time.Second.Milliseconds()) / pollRate))
+			time.Sleep(time.Duration(float64(time.Second.Nanoseconds()) / pollRate))
 		}
 	}
 	runner.cleanUp()
