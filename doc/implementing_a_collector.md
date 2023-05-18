@@ -46,14 +46,14 @@ func (anouncer *AnouncementCollector) ShouldPoll() bool {
 }
 
 func (anouncer *AnouncementCollector) Poll() []error {
-	errs := make([]error, 1)
+	errs := make([]error, 0)
 	err := anouncer.callback.Call(
 		fmt.Sprintf("%T", anouncer),
 		anouncer.key,
 		anouncer.msg,
 	)
 	if err != nil {
-		errs[0] = err
+		errs = append(errs, err)
 	}
 	return errs
 }
@@ -62,56 +62,37 @@ func (anouncer *AnouncementCollector) CleanUp(key string) error {
 	return nil
 }
 
-func (constructor *CollectionConstuctor) NewAnouncementCollector() (*AnouncementCollector, error) {
-	return &AnouncementCollector{msg: constructor.Msg}, nil
+func (constuctor *CollectionConstuctor) NewAnouncementCollector() (*AnouncementCollector, error) {
+	anouncer := AnouncementCollector{callback: constuctor.Callback, msg: constuctor.Msg}
+	return &anouncer, nil
 }
 
-
 ```
-In runner/runner.go Call the `NewAnouncementCollector` constuctor in the `setupCollectors` function and append `"Anouncer"` to `collectorNames`
+In runner/runner.go Call the `NewAnouncementCollector` constuctor in the `initialise` method of CollectorRunner and append `"Anouncer"` to `collectorNames` in the `NewCollectorRunner` function.
 ```go
+func NewCollectorRunner() CollectorRunner {
+	...
+    collectorNames = append(collectorNames, "PTP", "Anouncer")
+	...
+}
 
-
-func setupCollectors(
-	collectorNames []string,
-	callback callbacks.Callback,
-	ptpInterface string,
-	clientset *clients.Clientset,
-	pollRate float64,
-) []*collectors.Collector {
-	collecterInstances := make([]*collectors.Collector, 0)
-	var newCollector collectors.Collector
-
-	constuctor := collectors.CollectionConstuctor{
-		Callback:     callback,
-		PTPInterface: ptpInterface,
-		Clientset:    clientset,
-		PollRate:     pollRate,
-	}
-
-	for _, constuctorName := range collectorNames {
+func (runner *CollectorRunner) initialise(...){
+	...
+	for _, constuctorName := range runner.collectorNames {
+		var newCollector collectors.Collector
 		switch constuctorName {
-		case "Anouncer":
-            NewAnouncerCollector, err := constuctor.NewAnouncementCollector()
-			// Handle error ...
+            ...
+		case "Anouncer": //nolint: goconst // This is just for ilustrative purposes
+			NewAnouncerCollector, err := constuctor.NewAnouncementCollector()
+			// Handle error...
+            utils.IfErrorPanic(err)
 			newCollector = NewAnouncerCollector
-        ...
+			log.Debug("Anouncer Collector")
+		...
         }
         ...
     }
     ...
 }
-func Run(
-	kubeConfig string,
-	logLevel string,
-	outputFile string,
-	pollCount int,
-	pollRate float64,
-	ptpInterface string,
-) {
-	...
-	collectorNames := make([]string, 0)
-	collectorNames = append(collectorNames, "PTP", "Anouncer")
-    ...
-}
+
 ```
