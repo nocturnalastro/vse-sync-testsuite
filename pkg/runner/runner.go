@@ -69,6 +69,10 @@ func setupCollectors(
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
 			utils.IfErrorPanic(err)
 			newCollector = NewPTPCollector
+		case "Anouncer": //nolint: goconst // This is just for ilustrative purposes
+			NewAnouncerCollector, err := constuctor.NewAnouncementCollector()
+			utils.IfErrorPanic(err)
+			newCollector = NewAnouncerCollector
 		default:
 			panic("Unknown collector")
 		}
@@ -92,7 +96,7 @@ func Run(
 
 	// TODO: Make this config
 	collectorNames := make([]string, 0)
-	collectorNames = append(collectorNames, "PTP")
+	collectorNames = append(collectorNames, "PTP", "Anouncer")
 
 	collecterInstances := setupCollectors(collectorNames, callback, ptpInterface, clientset, pollRate)
 
