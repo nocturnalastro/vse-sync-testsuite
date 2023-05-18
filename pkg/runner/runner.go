@@ -69,11 +69,19 @@ func setupCollectors(
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
 			utils.IfErrorPanic(err)
 			newCollector = NewPTPCollector
+			log.Debug("PTP Collector")
+		case "Anouncer": //nolint: goconst // This is just for ilustrative purposes
+			NewAnouncerCollector, err := constuctor.NewAnouncementCollector()
+			utils.IfErrorPanic(err)
+			newCollector = NewAnouncerCollector
+			log.Debug("Anouncer Collector")
 		default:
+			newCollector = nil
 			panic("Unknown collector")
 		}
 		if newCollector != nil {
 			collecterInstances = append(collecterInstances, &newCollector)
+			log.Debugf("Added collector %T, %v", newCollector, newCollector)
 		}
 	}
 	return collecterInstances
@@ -92,11 +100,12 @@ func Run(
 
 	// TODO: Make this config
 	collectorNames := make([]string, 0)
-	collectorNames = append(collectorNames, "PTP")
+	collectorNames = append(collectorNames, "PTP", "Anouncer")
 
 	collecterInstances := setupCollectors(collectorNames, callback, ptpInterface, clientset, pollRate)
-
+	log.Debugf("Collectors %v", collecterInstances)
 	for _, collector := range collecterInstances {
+		log.Debugf("start collector %v", collector)
 		err = (*collector).Start(collectors.All)
 		utils.IfErrorPanic(err)
 	}
@@ -112,6 +121,7 @@ out:
 		default:
 			for _, collector := range collecterInstances {
 				if (*collector).ShouldPoll() {
+					log.Debugf("poll %v", collector)
 					errors := (*collector).Poll()
 					if len(errors) > 0 {
 						// TODO: handle errors (better)
@@ -123,6 +133,7 @@ out:
 		}
 	}
 	for _, collector := range collecterInstances {
+		log.Debugf("cleanup %v", collector)
 		errColletor := (*collector).CleanUp(collectors.All)
 		utils.IfErrorPanic(errColletor)
 	}

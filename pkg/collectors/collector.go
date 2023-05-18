@@ -44,5 +44,6 @@ type CollectionConstuctor struct {
 	Callback     callbacks.Callback
 	Clientset    *clients.Clientset
 	PTPInterface string
+	Msg          string
 	PollRate     float64
 }
