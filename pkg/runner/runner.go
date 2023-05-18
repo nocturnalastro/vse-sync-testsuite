@@ -46,14 +46,26 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 	}
 }
 
-func setupCollectors(
-	collectorNames []string,
+type CollectorRunner struct {
+	collecterInstances []*collectors.Collector
+	collectorNames     []string
+}
+
+func NewCollectorRunner() CollectorRunner {
+	collectorNames := make([]string, 0)
+	collectorNames = append(collectorNames, "PTP", "Anouncer")
+	return CollectorRunner{
+		collecterInstances: make([]*collectors.Collector, 0),
+		collectorNames:     collectorNames,
+	}
+}
+
+func (runner *CollectorRunner) initialise(
 	callback callbacks.Callback,
 	ptpInterface string,
 	clientset *clients.Clientset,
 	pollRate float64,
-) []*collectors.Collector {
-	collecterInstances := make([]*collectors.Collector, 0)
+) {
 	constuctor := collectors.CollectionConstuctor{
 		Callback:     callback,
 		PTPInterface: ptpInterface,
@@ -61,7 +73,7 @@ func setupCollectors(
 		PollRate:     pollRate,
 	}
 
-	for _, constuctorName := range collectorNames {
+	for _, constuctorName := range runner.collectorNames {
 		var newCollector collectors.Collector
 		switch constuctorName {
 		case "PTP":
@@ -75,15 +87,45 @@ func setupCollectors(
 			newCollector = NewAnouncerCollector
 			log.Debug("Anouncer Collector")
 		default:
-			newCollector = nil
 			panic("Unknown collector")
 		}
 		if newCollector != nil {
-			collecterInstances = append(collecterInstances, &newCollector)
+			runner.collecterInstances = append(runner.collecterInstances, &newCollector)
 			log.Debugf("Added collector %T, %v", newCollector, newCollector)
 		}
 	}
-	return collecterInstances
+	log.Debugf("Collectors %v", runner.collecterInstances)
+}
+
+func (runner *CollectorRunner) start() {
+	for _, collector := range runner.collecterInstances {
+		log.Debugf("start collector %v", collector)
+		err := (*collector).Start(collectors.All)
+		utils.IfErrorPanic(err)
+	}
+}
+
+func (runner *CollectorRunner) poll() {
+	for _, collector := range runner.collecterInstances {
+		log.Debugf("Running collector: %v", collector)
+
+		if (*collector).ShouldPoll() {
+			log.Debugf("poll %v", collector)
+			errors := (*collector).Poll()
+			if len(errors) > 0 {
+				// TODO: handle errors (better)
+				log.Error(errors)
+			}
+		}
+	}
+}
+
+func (runner *CollectorRunner) cleanUp() {
+	for _, collector := range runner.collecterInstances {
+		log.Debugf("cleanup %v", collector)
+		errColletor := (*collector).CleanUp(collectors.All)
+		utils.IfErrorPanic(errColletor)
+	}
 }
 
 func Run(
@@ -97,18 +139,9 @@ func Run(
 	callback, err := selectCollectorCallback(outputFile)
 	utils.IfErrorPanic(err)
 
-	// TODO: Make this config
-	collectorNames := make([]string, 0)
-	collectorNames = append(collectorNames, "PTP", "Anouncer")
-
-	collecterInstances := setupCollectors(collectorNames, callback, ptpInterface, clientset, pollRate)
-	log.Debugf("Collectors %v", collecterInstances)
-	for _, collector := range collecterInstances {
-		log.Debugf("start collector %v", collector)
-		err = (*collector).Start(collectors.All)
-		utils.IfErrorPanic(err)
-	}
-
+	runner := NewCollectorRunner()
+	runner.initialise(callback, ptpInterface, clientset, pollRate)
+	runner.start()
 	quit := getQuitChannel()
 
 out:
@@ -118,26 +151,11 @@ out:
 			log.Info("Killed shuting down")
 			break out
 		default:
-			for _, collector := range collecterInstances {
-				log.Debugf("Running collector: %v", collector)
-
-				if (*collector).ShouldPoll() {
-					log.Debugf("poll %v", collector)
-					errors := (*collector).Poll()
-					if len(errors) > 0 {
-						// TODO: handle errors (better)
-						log.Error(errors)
-					}
-				}
-			}
-			time.Sleep(time.Duration(1e9 / pollRate))
+			runner.poll()
+			time.Sleep(time.Duration(float64(time.Second.Milliseconds()) / pollRate))
 		}
 	}
-	for _, collector := range collecterInstances {
-		log.Debugf("cleanup %v", collector)
-		errColletor := (*collector).CleanUp(collectors.All)
-		utils.IfErrorPanic(errColletor)
-	}
+	runner.cleanUp()
 	errCallback := callback.CleanUp()
 	utils.IfErrorPanic(errCallback)
 }
