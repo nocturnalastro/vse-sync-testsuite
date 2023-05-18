@@ -37,14 +37,14 @@ func (anouncer *AnouncementCollector) ShouldPoll() bool {
 }
 
 func (anouncer *AnouncementCollector) Poll() []error {
-	errs := make([]error, 1)
+	errs := make([]error, 0)
 	err := anouncer.callback.Call(
 		fmt.Sprintf("%T", anouncer),
 		anouncer.key,
 		anouncer.msg,
 	)
 	if err != nil {
-		errs[0] = err
+		errs = append(errs, err)
 	}
 	return errs
 }
