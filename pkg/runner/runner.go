@@ -64,8 +64,8 @@ func setupCollectors(
 	ptpInterface string,
 	clientset *clients.Clientset,
 	pollRate float64,
-) []collectors.Collector {
-	collecterInstances := make([]collectors.Collector, 0)
+) []*collectors.Collector {
+	collecterInstances := make([]*collectors.Collector, 0)
 	var newCollector collectors.Collector
 
 	constuctor := collectors.CollectionConstuctor{
@@ -80,12 +80,12 @@ func setupCollectors(
 		case "PTP":
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
 			ifErrorPanic(err)
-			newCollector, _ = NewPTPCollector.(collectors.Collector)
+			newCollector = NewPTPCollector
 		default:
 			panic("Unknown collector")
 		}
 		if newCollector != nil {
-			collecterInstances = append(collecterInstances, newCollector)
+			collecterInstances = append(collecterInstances, &newCollector)
 		}
 	}
 	return collecterInstances
@@ -110,7 +110,7 @@ func Run(
 	collecterInstances := setupCollectors(collectorNames, callback, ptpInterface, clientset, pollRate)
 
 	for _, collector := range collecterInstances {
-		err = collector.Start(collectors.All)
+		err = (*collector).Start(collectors.All)
 		ifErrorPanic(err)
 	}
 
@@ -125,8 +125,8 @@ out:
 		default:
 			for _, collector := range collecterInstances {
 				log.Debugf("colletor %v", collector)
-				if collector.ShouldPoll() {
-					errors := collector.Poll()
+				if (*collector).ShouldPoll() {
+					errors := (*collector).Poll()
 					if len(errors) > 0 {
 						// TODO: handle errors (better)
 						log.Error(errors)
@@ -137,7 +137,7 @@ out:
 		}
 	}
 	for _, collector := range collecterInstances {
-		errColletor := collector.CleanUp(collectors.All)
+		errColletor := (*collector).CleanUp(collectors.All)
 		ifErrorPanic(errColletor)
 	}
 	errCallback := callback.CleanUp()

@@ -157,10 +157,10 @@ func (ptpDev *PTPCollector) CleanUp(key string) error {
 	return nil
 }
 
-func (constuctor *CollectionConstuctor) NewPTPCollector() (interface{}, error) {
+func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error) {
 	ctx, err := clients.NewContainerContext(constuctor.Clientset, PTPNamespace, PodNamePrefix, PTPContainer)
 	if err != nil {
-		return PTPCollector{}, fmt.Errorf("could not create container context %w", err)
+		return &PTPCollector{}, fmt.Errorf("could not create container context %w", err)
 	}
 
 	data := make(map[string]interface{})
@@ -171,10 +171,10 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (interface{}, error) {
 
 	ptpDevInfo, ok := data[DeivceInfo].(devices.PTPDeviceInfo)
 	if !ok {
-		return PTPCollector{}, fmt.Errorf("DeviceInfo was not able to be unpacked")
+		return &PTPCollector{}, fmt.Errorf("DeviceInfo was not able to be unpacked")
 	}
 	if ptpDevInfo.VendorID != VendorIntel || ptpDevInfo.DeviceID != DeviceE810 {
-		return PTPCollector{}, fmt.Errorf("NIC device is not based on E810")
+		return &PTPCollector{}, fmt.Errorf("NIC device is not based on E810")
 	}
 
 	collector := PTPCollector{
@@ -188,5 +188,5 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (interface{}, error) {
 		lastPoll:        time.Now(),
 	}
 
-	return collector, nil
+	return &collector, nil
 }
