@@ -19,24 +19,11 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 )
 
-type CollectedData interface{}
-
 type Collector interface {
-	// interfaceName   string
-	// ctx             clients.ContainerContext
-	// DataTypes       [3]string
-	// data            map[string]interface{}
-	// inversePollRate float64
-	// callback        Callback
-
-	// running  map[string]bool
-	// lastPoll time.Time
-
-	Start(key string) error // Links collector to monitoring stack if required
-	// Get() (CollectedData, error) // Returns an interface to retrieve data from the monitoring stack
+	Start(key string) error   // Setups any internal state required for collection to happen
 	ShouldPoll() bool         // Check if poll time has alapsed and if it should be polled again
 	Poll() []error            // Poll for collectables
-	CleanUp(key string) error // Unlinks collecter from monitoring stack if required
+	CleanUp(key string) error // Cleans up any internal state
 }
 
 // A union of all values required to be passed into all constuctions

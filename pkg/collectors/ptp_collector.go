@@ -157,6 +157,7 @@ func (ptpDev *PTPCollector) CleanUp(key string) error {
 	return nil
 }
 
+// Returns a new PTPCollector from the CollectionConstuctor Factory
 func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error) {
 	ctx, err := clients.NewContainerContext(constuctor.Clientset, PTPNamespace, PodNamePrefix, PTPContainer)
 	if err != nil {
