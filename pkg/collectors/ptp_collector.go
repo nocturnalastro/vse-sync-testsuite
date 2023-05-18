@@ -57,45 +57,6 @@ var collectables = [3]string{
 	GNNSSTTY,
 }
 
-func NewPTPCollector(
-	ptpInterface string,
-	pollRate float64,
-	clientset *clients.Clientset,
-	callback callbacks.Callback,
-) (PTPCollector, error) {
-	ctx, err := clients.NewContainerContext(clientset, PTPNamespace, PodNamePrefix, PTPContainer)
-	if err != nil {
-		return PTPCollector{}, fmt.Errorf("could not create container context %w", err)
-	}
-
-	data := make(map[string]interface{})
-	running := make(map[string]bool)
-
-	data[DeivceInfo] = devices.GetPTPDeviceInfo(ptpInterface, ctx)
-	data[DLLInfo] = devices.GetDevDPLLInfo(ctx, ptpInterface)
-
-	ptpDevInfo, ok := data[DeivceInfo].(devices.PTPDeviceInfo)
-	if !ok {
-		return PTPCollector{}, fmt.Errorf("DeviceInfo was not able to be unpacked")
-	}
-	if ptpDevInfo.VendorID != VendorIntel || ptpDevInfo.DeviceID != DeviceE810 {
-		return PTPCollector{}, fmt.Errorf("NIC device is not based on E810")
-	}
-
-	collector := PTPCollector{
-		interfaceName:   ptpInterface,
-		ctx:             ctx,
-		DataTypes:       collectables,
-		data:            data,
-		running:         running,
-		callback:        callback,
-		inversePollRate: 1.0 / pollRate,
-		lastPoll:        time.Now(),
-	}
-
-	return collector, nil
-}
-
 func (ptpDev *PTPCollector) getNotCollectableError(key string) error {
 	return fmt.Errorf("key %s is not a colletable of %T", key, ptpDev)
 }
@@ -196,6 +157,36 @@ func (ptpDev *PTPCollector) CleanUp(key string) error {
 	return nil
 }
 
-func init() {
-	Register("PTP", NewPTPCollector)
+func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error) {
+	ctx, err := clients.NewContainerContext(constuctor.Clientset, PTPNamespace, PodNamePrefix, PTPContainer)
+	if err != nil {
+		return &PTPCollector{}, fmt.Errorf("could not create container context %w", err)
+	}
+
+	data := make(map[string]interface{})
+	running := make(map[string]bool)
+
+	data[DeivceInfo] = devices.GetPTPDeviceInfo(constuctor.PTPInterface, ctx)
+	data[DLLInfo] = devices.GetDevDPLLInfo(ctx, constuctor.PTPInterface)
+
+	ptpDevInfo, ok := data[DeivceInfo].(devices.PTPDeviceInfo)
+	if !ok {
+		return &PTPCollector{}, fmt.Errorf("DeviceInfo was not able to be unpacked")
+	}
+	if ptpDevInfo.VendorID != VendorIntel || ptpDevInfo.DeviceID != DeviceE810 {
+		return &PTPCollector{}, fmt.Errorf("NIC device is not based on E810")
+	}
+
+	collector := PTPCollector{
+		interfaceName:   constuctor.PTPInterface,
+		ctx:             ctx,
+		DataTypes:       collectables,
+		data:            data,
+		running:         running,
+		callback:        constuctor.Callback,
+		inversePollRate: 1.0 / constuctor.PollRate,
+		lastPoll:        time.Now(),
+	}
+
+	return &collector, nil
 }

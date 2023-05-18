@@ -58,6 +58,38 @@ func setupLogging(logLevel string, out io.Writer) {
 	ifErrorPanic(err)
 	log.SetLevel(level)
 }
+func setupCollectors(
+	collectorNames []string,
+	callback callbacks.Callback,
+	ptpInterface string,
+	clientset *clients.Clientset,
+	pollRate float64,
+) []*collectors.Collector {
+	collecterInstances := make([]*collectors.Collector, 0)
+	var newCollector collectors.Collector
+
+	constuctor := collectors.CollectionConstuctor{
+		Callback:     callback,
+		PTPInterface: ptpInterface,
+		Clientset:    clientset,
+		PollRate:     pollRate,
+	}
+
+	for _, constuctorName := range collectorNames {
+		switch constuctorName {
+		case "PTP":
+			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
+			ifErrorPanic(err)
+			newCollector = NewPTPCollector
+		default:
+			panic("Unknown collector")
+		}
+		if newCollector != nil {
+			collecterInstances = append(collecterInstances, &newCollector)
+		}
+	}
+	return collecterInstances
+}
 
 func Run(
 	kubeConfig string,
@@ -69,18 +101,19 @@ func Run(
 ) {
 	setupLogging(logLevel, os.Stdout)
 
-	log.Debugf("%v", collectors.Registry)
-	for key, collecterFunc := range collectors.Registry {
-		log.Debugf("key %v func %v", key, collecterFunc)
-	}
-
 	clientset := clients.GetClientset(kubeConfig)
 	callback, err := selectCollectorCallback(outputFile)
 	ifErrorPanic(err)
-	ptpCollector, err := collectors.NewPTPCollector(ptpInterface, pollRate, clientset, callback)
-	ifErrorPanic(err)
-	err = ptpCollector.Start(collectors.All)
-	ifErrorPanic(err)
+	collectorNames := make([]string, 0)
+	collectorNames = append(collectorNames, "PTP")
+
+	collecterInstances := setupCollectors(collectorNames, callback, ptpInterface, clientset, pollRate)
+
+	for _, collector := range collecterInstances {
+		err = (*collector).Start(collectors.All)
+		ifErrorPanic(err)
+	}
+
 	quit := getQuitChannel()
 
 out:
@@ -90,19 +123,23 @@ out:
 			log.Info("Killed shuting down")
 			break out
 		default:
-			if ptpCollector.ShouldPoll() {
-				errors := ptpCollector.Poll()
-				if len(errors) > 0 {
-					// TODO: handle errors (better)
-					log.Error(errors)
+			for _, collector := range collecterInstances {
+				log.Debugf("colletor %v", collector)
+				if (*collector).ShouldPoll() {
+					errors := (*collector).Poll()
+					if len(errors) > 0 {
+						// TODO: handle errors (better)
+						log.Error(errors)
+					}
 				}
 			}
 			time.Sleep(time.Duration(1/pollRate) * time.Second)
 		}
 	}
-
-	errColletor := ptpCollector.CleanUp(collectors.All)
+	for _, collector := range collecterInstances {
+		errColletor := (*collector).CleanUp(collectors.All)
+		ifErrorPanic(errColletor)
+	}
 	errCallback := callback.CleanUp()
-	ifErrorPanic(errColletor)
 	ifErrorPanic(errCallback)
 }
