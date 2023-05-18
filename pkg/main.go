@@ -15,28 +15,9 @@
 package main
 
 import (
-	"io"
-	"os"
-
-	log "github.com/sirupsen/logrus"
-
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/cmd"
 )
 
-func ifErrorPanic(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func setupLogging(logLevel string, out io.Writer) {
-	log.SetOutput(out)
-	level, err := log.ParseLevel(logLevel)
-	ifErrorPanic(err)
-	log.SetLevel(level)
-}
-
 func main() {
 	cmd.Execute()
-	setupLogging(cmd.LogLevel, os.Stdout)
 }

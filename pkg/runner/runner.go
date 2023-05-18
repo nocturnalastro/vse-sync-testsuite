@@ -16,6 +16,7 @@ package runner
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,13 +52,24 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 	}
 }
 
+func setupLogging(logLevel string, out io.Writer) {
+	log.SetOutput(out)
+	level, err := log.ParseLevel(logLevel)
+	ifErrorPanic(err)
+	log.SetLevel(level)
+}
+
 func Run(
 	kubeConfig string,
+	logLevel string,
 	outputFile string,
 	pollCount int,
 	pollRate float64,
 	ptpInterface string,
 ) {
+	setupLogging(logLevel, os.Stdout)
+
+	log.Debugf("%v", collectors.Registry)
 	for key, collecterFunc := range collectors.Registry {
 		log.Debugf("key %v func %v", key, collecterFunc)
 	}

@@ -34,7 +34,7 @@ var (
 	pollRate     float64
 	ptpInterface string
 	outputFile   string
-	LogLevel     string
+	logLevel     string
 
 	// rootCmd represents the base command when called without any subcommands
 	rootCmd = &cobra.Command{
@@ -42,7 +42,7 @@ var (
 		Short: "A monitoring tool for PTP related metrics",
 		Long:  `A monitoring tool for PTP related metrics.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			runner.Run(kubeConfig, outputFile, pollCount, pollRate, ptpInterface)
+			runner.Run(kubeConfig, logLevel, outputFile, pollCount, pollRate, ptpInterface)
 		},
 	}
 )
@@ -92,7 +92,7 @@ func init() {
 		"Poll rate for querying the cluster",
 	)
 	rootCmd.PersistentFlags().StringVarP(
-		&LogLevel,
+		&logLevel,
 		"verbosity",
 		"v",
 		log.WarnLevel.String(),
