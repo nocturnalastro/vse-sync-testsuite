@@ -52,10 +52,6 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 	}
 }
 
-var (
-	collectorsToInit = [1]string{"PTP"}
-)
-
 func setupLogging(logLevel string, out io.Writer) {
 	log.SetOutput(out)
 	level, err := log.ParseLevel(logLevel)
@@ -63,6 +59,7 @@ func setupLogging(logLevel string, out io.Writer) {
 	log.SetLevel(level)
 }
 func setupCollectors(
+	collectorNames []string,
 	callback callbacks.Callback,
 	ptpInterface string,
 	clientset *clients.Clientset,
@@ -78,7 +75,7 @@ func setupCollectors(
 		PollRate:     pollRate,
 	}
 
-	for _, constuctorName := range collectorsToInit {
+	for _, constuctorName := range collectorNames {
 		switch constuctorName {
 		case "PTP":
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
@@ -107,8 +104,10 @@ func Run(
 	clientset := clients.GetClientset(kubeConfig)
 	callback, err := selectCollectorCallback(outputFile)
 	ifErrorPanic(err)
+	collectorNames := make([]string, 0)
+	collectorNames = append(collectorNames, "PTP")
 
-	collecterInstances := setupCollectors(callback, ptpInterface, clientset, pollRate)
+	collecterInstances := setupCollectors(collectorNames, callback, ptpInterface, clientset, pollRate)
 
 	for _, collector := range collecterInstances {
 		err = collector.Start(collectors.All)
@@ -125,6 +124,7 @@ out:
 			break out
 		default:
 			for _, collector := range collecterInstances {
+				log.Debugf("colletor %v", collector)
 				if collector.ShouldPoll() {
 					errors := collector.Poll()
 					if len(errors) > 0 {
