@@ -34,3 +34,9 @@ type Collector interface {
 	fetchLine() ([]byte, error) // Should call into callback
 	CleanUp(key string) error   // Unlinks collecter from monitoring stack if required
 }
+
+var Registry map[string]*interface{}
+
+func Register(key string, newCollectorFunc interface{}) {
+	Registry[key] = &newCollectorFunc
+}
