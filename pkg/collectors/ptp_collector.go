@@ -183,6 +183,9 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 
 	inversePollRate := 1.0 / constuctor.PollRate
 
+	// Subtract off a polling time so the first poll hits
+	initailLastPoll := time.Now().Add(-time.Duration(float64(time.Second.Nanoseconds()) * inversePollRate))
+
 	collector := PTPCollector{
 		interfaceName:   constuctor.PTPInterface,
 		ctx:             ctx,
@@ -191,7 +194,7 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		running:         running,
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
-		lastPoll:        time.Now().Add(-time.Duration(float64(time.Second.Milliseconds()) * inversePollRate)), // Subtract off a polling time so the first poll hits
+		lastPoll:        initailLastPoll,
 	}
 
 	return &collector, nil
