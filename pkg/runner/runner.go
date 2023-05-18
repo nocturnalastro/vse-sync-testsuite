@@ -16,7 +16,6 @@ package runner
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,13 +26,8 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
-
-func ifErrorPanic(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
 
 func getQuitChannel() chan os.Signal {
 	// Allow ourselves to handle shut down gracefully
@@ -52,12 +46,6 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 	}
 }
 
-func setupLogging(logLevel string, out io.Writer) {
-	log.SetOutput(out)
-	level, err := log.ParseLevel(logLevel)
-	ifErrorPanic(err)
-	log.SetLevel(level)
-}
 func setupCollectors(
 	collectorNames []string,
 	callback callbacks.Callback,
@@ -79,7 +67,7 @@ func setupCollectors(
 		switch constuctorName {
 		case "PTP":
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
-			ifErrorPanic(err)
+			utils.IfErrorPanic(err)
 			newCollector = NewPTPCollector
 		default:
 			panic("Unknown collector")
@@ -93,17 +81,16 @@ func setupCollectors(
 
 func Run(
 	kubeConfig string,
-	logLevel string,
 	outputFile string,
 	pollCount int,
 	pollRate float64,
 	ptpInterface string,
 ) {
-	setupLogging(logLevel, os.Stdout)
-
 	clientset := clients.GetClientset(kubeConfig)
 	callback, err := selectCollectorCallback(outputFile)
-	ifErrorPanic(err)
+	utils.IfErrorPanic(err)
+
+	// TODO: Make this config
 	collectorNames := make([]string, 0)
 	collectorNames = append(collectorNames, "PTP")
 
@@ -111,7 +98,7 @@ func Run(
 
 	for _, collector := range collecterInstances {
 		err = (*collector).Start(collectors.All)
-		ifErrorPanic(err)
+		utils.IfErrorPanic(err)
 	}
 
 	quit := getQuitChannel()
@@ -124,7 +111,6 @@ out:
 			break out
 		default:
 			for _, collector := range collecterInstances {
-				log.Debugf("colletor %v", collector)
 				if (*collector).ShouldPoll() {
 					errors := (*collector).Poll()
 					if len(errors) > 0 {
@@ -138,8 +124,8 @@ out:
 	}
 	for _, collector := range collecterInstances {
 		errColletor := (*collector).CleanUp(collectors.All)
-		ifErrorPanic(errColletor)
+		utils.IfErrorPanic(errColletor)
 	}
 	errCallback := callback.CleanUp()
-	ifErrorPanic(errCallback)
+	utils.IfErrorPanic(errCallback)
 }

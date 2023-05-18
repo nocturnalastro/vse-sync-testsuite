@@ -20,6 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/logging"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/runner"
 )
 
@@ -42,19 +43,11 @@ var (
 		Short: "A monitoring tool for PTP related metrics",
 		Long:  `A monitoring tool for PTP related metrics.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			runner.Run(kubeConfig, logLevel, outputFile, pollCount, pollRate, ptpInterface)
+			logging.SetupLogging(logLevel, os.Stdout)
+			runner.Run(kubeConfig, outputFile, pollCount, pollRate, ptpInterface)
 		},
 	}
 )
-
-// Required:
-// kubeconfig (-k): Path to kubeconfig of target system
-// interface (-i):  The interface the PTP configured on
-// Optional:
-// count (-c):      The number of times the cluster will be queried (-1 means infinite)
-// rate (-r):       The polling rate in seconds
-// output (-o):     Path to the file to write results to (defaults to stdout)
-// verbosity (-v):  Log level (debug, info, warn, error, fatal, panic)
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
