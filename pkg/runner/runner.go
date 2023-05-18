@@ -54,8 +54,6 @@ func setupCollectors(
 	pollRate float64,
 ) []*collectors.Collector {
 	collecterInstances := make([]*collectors.Collector, 0)
-	var newCollector collectors.Collector
-
 	constuctor := collectors.CollectionConstuctor{
 		Callback:     callback,
 		PTPInterface: ptpInterface,
@@ -64,6 +62,7 @@ func setupCollectors(
 	}
 
 	for _, constuctorName := range collectorNames {
+		var newCollector collectors.Collector
 		switch constuctorName {
 		case "PTP":
 			NewPTPCollector, err := constuctor.NewPTPCollector() //nolint:govet // TODO clean this up
