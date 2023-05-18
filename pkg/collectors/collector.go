@@ -35,12 +35,16 @@ type Collector interface {
 	CleanUp(key string) error   // Unlinks collecter from monitoring stack if required
 }
 
-var Registry map[string]*interface{}
+var Registry map[string]CollectorConstructor
 
-func Register(key string, newCollectorFunc interface{}) {
-	Registry[key] = &newCollectorFunc
+func Register(key string, constuctor CollectorConstructor) {
+	Registry[key] = constuctor
 }
 
 func init() {
-	Registry = make(map[string]*interface{})
+	Registry = make(map[string]CollectorConstructor)
+}
+
+type CollectorConstructor interface {
+	NewCollector() (interface{}, error)
 }
