@@ -58,6 +58,10 @@ func Run(
 	pollRate float64,
 	ptpInterface string,
 ) {
+	for key, collecterFunc := range collectors.Registry {
+		log.Debugf("key %v func %v", key, collecterFunc)
+	}
+
 	clientset := clients.GetClientset(kubeConfig)
 	callback, err := selectCollectorCallback(outputFile)
 	ifErrorPanic(err)

@@ -195,3 +195,7 @@ func (ptpDev *PTPCollector) CleanUp(key string) error {
 	}
 	return nil
 }
+
+func init() {
+	Register("PTP", NewPTPCollector)
+}
