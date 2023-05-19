@@ -32,6 +32,7 @@ type Clientset struct {
 	DynamicClient dynamic.Interface
 	OcpClient     ocpconfig.Interface
 	K8sClient     kubernetes.Interface
+	K8sRestClient rest.Interface
 	ready         bool
 }
 
@@ -89,6 +90,11 @@ func newClientset(kubeconfigPaths ...string) (*Clientset, error) {
 		return nil, fmt.Errorf("cannot instantiate ocClient: %w", err)
 	}
 
+	clientset.K8sRestClient = clientset.K8sClient.CoreV1().RESTClient()
 	clientset.ready = true
 	return &clientset, nil
+}
+
+func ClearClientSet() {
+	clientset = Clientset{}
 }

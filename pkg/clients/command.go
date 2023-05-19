@@ -27,6 +27,8 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 )
 
+var NewSPDYExecutor = remotecommand.NewSPDYExecutor
+
 // ContainerContext encapsulates the context in which a command is run; the namespace, pod, and container.
 type ContainerContext struct {
 	namespace     string
@@ -99,8 +101,7 @@ func (clientsholder *Clientset) ExecCommandContainer(ctx ContainerContext, comma
 		ctx.GetContainerName(),
 		strings.Join(commandStr, " "),
 	))
-	req := clientsholder.K8sClient.CoreV1().RESTClient().
-		Post().
+	req := clientsholder.K8sRestClient.Post().
 		Namespace(ctx.GetNamespace()).
 		Resource("pods").
 		Name(ctx.GetPodName()).
@@ -114,7 +115,7 @@ func (clientsholder *Clientset) ExecCommandContainer(ctx ContainerContext, comma
 			TTY:       false,
 		}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(clientsholder.RestConfig, "POST", req.URL())
+	exec, err := NewSPDYExecutor(clientsholder.RestConfig, "POST", req.URL())
 	if err != nil {
 		log.Error(err)
 		return stdout, stderr, fmt.Errorf("error setting up remote command: %w", err)

@@ -33,6 +33,10 @@ var (
 )
 
 var _ = Describe("Client", func() {
+	BeforeEach(func() {
+		clients.ClearClientSet()
+	})
+
 	When("A clientset is requested with no kubeconfig", func() {
 		It("should panic", func() {
 			var clientset *clients.Clientset
@@ -50,7 +54,7 @@ var _ = Describe("Client", func() {
 	})
 })
 
-func TestCluster(t *testing.T) {
+func TestCommand(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Clients Suite")
 }
