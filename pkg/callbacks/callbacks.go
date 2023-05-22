@@ -16,6 +16,7 @@ package callbacks
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 )
@@ -50,12 +51,12 @@ func NewFileCallback(filename string) (FileCallBack, error) {
 }
 
 type FileCallBack struct {
-	fileHandle *os.File
+	fileHandle io.WriteCloser
 }
 
 func (c FileCallBack) Call(collectorName, datatype, line string) error {
 	output := fmt.Sprintf("%v, %v:%v, %v\n", time.Now().UTC(), collectorName, datatype, line)
-	_, err := c.fileHandle.WriteString(output)
+	_, err := c.fileHandle.Write([]byte(output))
 	if err != nil {
 		return fmt.Errorf("failed to write to file in callback: %w", err)
 	}
