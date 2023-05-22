@@ -20,6 +20,7 @@ package clients_test
 
 import (
 	"errors"
+	"net/url"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -98,14 +99,10 @@ var _ = Describe("ExecCommandContainer", func() {
 		It("should exec the command and return the std buffers", func() {
 			expectedStdOut := "my test command stdout"
 			expectedStdErr := "my test command stderr"
-
-			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(
-				expectedStdOut,
-				expectedStdErr,
-				nil,
-				nil,
-			)
-
+			responder := func(method string, url *url.URL) ([]byte, []byte, error) {
+				return []byte(expectedStdOut), []byte(expectedStdErr), nil
+			}
+			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(responder, nil)
 			ctx, _ := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			cmd := []string{"my", "test", "command"}
 			stdout, stderr, err := clientset.ExecCommandContainer(ctx, cmd)
@@ -121,13 +118,10 @@ var _ = Describe("ExecCommandContainer", func() {
 			expectedStdOut := ""
 			expectedStdErr := ""
 			expectedErr := errors.New("Something went horribly wrong when creating the executor")
-			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(
-				expectedStdOut,
-				expectedStdErr,
-				nil,
-				expectedErr,
-			)
-
+			responder := func(method string, url *url.URL) ([]byte, []byte, error) {
+				return []byte(expectedStdOut), []byte(expectedStdErr), nil
+			}
+			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(responder, expectedErr)
 			ctx, _ := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			cmd := []string{"my", "test", "command"}
 			stdout, stderr, err := clientset.ExecCommandContainer(ctx, cmd)
@@ -143,13 +137,10 @@ var _ = Describe("ExecCommandContainer", func() {
 			expectedStdOut := ""
 			expectedStdErr := ""
 			expectedErr := errors.New("Something went horribly wrong with the stream")
-			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(
-				expectedStdOut,
-				expectedStdErr,
-				expectedErr,
-				nil,
-			)
-
+			responder := func(method string, url *url.URL) ([]byte, []byte, error) {
+				return []byte(expectedStdOut), []byte(expectedStdErr), expectedErr
+			}
+			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(responder, nil)
 			ctx, _ := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			cmd := []string{"my", "test", "command"}
 			stdout, stderr, err := clientset.ExecCommandContainer(ctx, cmd)
