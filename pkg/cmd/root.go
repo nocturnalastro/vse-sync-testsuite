@@ -44,7 +44,8 @@ var (
 		Long:  `A monitoring tool for PTP related metrics.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			logging.SetupLogging(logLevel, os.Stdout)
-			runner.Run(kubeConfig, outputFile, pollCount, pollRate, ptpInterface)
+			collectionRunner := runner.NewCollectorRunner()
+			collectionRunner.Run(kubeConfig, outputFile, pollCount, pollRate, ptpInterface)
 		},
 	}
 )

@@ -47,16 +47,18 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 }
 
 type CollectorRunner struct {
+	quit               chan os.Signal
 	collecterInstances []*collectors.Collector
 	collectorNames     []string
 }
 
-func NewCollectorRunner() CollectorRunner {
+func NewCollectorRunner() *CollectorRunner {
 	collectorNames := make([]string, 0)
 	collectorNames = append(collectorNames, "PTP")
-	return CollectorRunner{
+	return &CollectorRunner{
 		collecterInstances: make([]*collectors.Collector, 0),
 		collectorNames:     collectorNames,
+		quit:               getQuitChannel(),
 	}
 }
 
@@ -124,7 +126,7 @@ func (runner *CollectorRunner) cleanUp() {
 	}
 }
 
-func Run(
+func (runner *CollectorRunner) Run(
 	kubeConfig string,
 	outputFile string,
 	pollCount int,
@@ -135,15 +137,13 @@ func Run(
 	callback, err := selectCollectorCallback(outputFile)
 	utils.IfErrorPanic(err)
 
-	runner := NewCollectorRunner()
 	runner.initialise(callback, ptpInterface, clientset, pollRate)
 	runner.start()
-	quit := getQuitChannel()
 
 out:
 	for numberOfPolls := 1; pollCount < 0 || numberOfPolls <= pollCount; numberOfPolls++ {
 		select {
-		case <-quit:
+		case <-runner.quit:
 			log.Info("Killed shuting down")
 			break out
 		default:

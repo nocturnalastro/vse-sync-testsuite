@@ -47,16 +47,16 @@ func NewFileCallback(filename string) (FileCallBack, error) {
 	if err != nil {
 		return FileCallBack{}, fmt.Errorf("failed to open file: %w", err)
 	}
-	return FileCallBack{fileHandle: file}, nil
+	return FileCallBack{FileHandle: file}, nil
 }
 
 type FileCallBack struct {
-	fileHandle io.WriteCloser
+	FileHandle io.WriteCloser
 }
 
 func (c FileCallBack) Call(collectorName, datatype, line string) error {
 	output := fmt.Sprintf("%v, %v:%v, %v\n", time.Now().UTC(), collectorName, datatype, line)
-	_, err := c.fileHandle.Write([]byte(output))
+	_, err := c.FileHandle.Write([]byte(output))
 	if err != nil {
 		return fmt.Errorf("failed to write to file in callback: %w", err)
 	}
@@ -64,7 +64,7 @@ func (c FileCallBack) Call(collectorName, datatype, line string) error {
 }
 
 func (c FileCallBack) CleanUp() error {
-	err := c.fileHandle.Close()
+	err := c.FileHandle.Close()
 	if err != nil {
 		return fmt.Errorf("failed to close file handle in callback: %w", err)
 	}
