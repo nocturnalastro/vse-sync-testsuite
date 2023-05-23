@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeK8s "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/testutils"
@@ -82,17 +81,8 @@ var _ = Describe("NewContainerContext", func() {
 
 var _ = Describe("ExecCommandContainer", func() {
 	var clientset *clients.Clientset
-	var fakeK8sClient *fakeK8s.Clientset
-	var fakeRestClient *rest.RESTClient
 	BeforeEach(func() {
-		clients.ClearClientSet()
-		clientset = clients.GetClientset(kubeconfigPath)
-		fakeK8sClient = fakeK8s.NewSimpleClientset(testPod)
-		fakeRestClient = &rest.RESTClient{}
-
-		clientset.K8sClient = fakeK8sClient
-		clientset.K8sRestClient = fakeRestClient
-
+		clientset = testutils.GetMockedClientSet(testPod)
 	})
 
 	When("given a pod", func() {
