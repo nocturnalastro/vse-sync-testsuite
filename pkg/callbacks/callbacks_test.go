@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
-	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 )
 
 func NewTestFile() *testFile {
@@ -31,12 +30,11 @@ func (t *testFile) Close() error {
 	return errors.New("File is already closed") // TODO look up actual errors
 }
 
-var _ = Describe("Client", func() {
+var _ = Describe("Callbacks", func() {
 	var mockedFile *testFile
 	var callback *callbacks.FileCallBack
 
 	BeforeEach(func() {
-		clients.ClearClientSet()
 		mockedFile = NewTestFile()
 		callback = &callbacks.FileCallBack{FileHandle: mockedFile}
 	})
@@ -49,7 +47,8 @@ var _ = Describe("Client", func() {
 			Expect(mockedFile.ReadString('\n')).To(ContainSubstring("This is a test line"))
 		})
 	})
-	When("A FileCallback is clened up", func() {
+
+	When("A FileCallback is cleaned up", func() {
 		It("should close the file", func() {
 			err := callback.CleanUp()
 			Expect(err).NotTo(HaveOccurred())
