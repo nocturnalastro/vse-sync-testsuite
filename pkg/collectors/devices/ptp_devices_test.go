@@ -47,7 +47,7 @@ var _ = Describe("NewContainerContext", func() {
 			devID := "0x1593"
 			gnssDev := "gnss0"
 
-			response["ls /sys/class/net/aFakeInterface/device/gnss/"] = []byte("gnss0")
+			response["ls /sys/class/net/aFakeInterface/device/gnss/"] = []byte(gnssDev)
 			response["cat /sys/class/net/aFakeInterface/device/device"] = []byte(devID)
 			response["cat /sys/class/net/aFakeInterface/device/vendor"] = []byte(vendor)
 
