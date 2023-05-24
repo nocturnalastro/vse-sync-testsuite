@@ -74,7 +74,6 @@ func (ptpDev *PTPCollector) Start(key string) error {
 	return nil
 }
 
-// Checks to see if the enou
 func (ptpDev *PTPCollector) ShouldPoll() bool {
 	log.Debugf("since: %v", time.Since(ptpDev.lastPoll).Seconds())
 	log.Debugf("wait: %v", ptpDev.inversePollRate)
