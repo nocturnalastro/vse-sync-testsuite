@@ -1,6 +1,6 @@
 # Implementing Collectors
 
-Any collector must conform to the collector interface (TODO: link to collector interface). It should use the call back to expose is infomation to the user.
+Any collector must conform to the collector interface (TODO: link to collector interface). It should use the callback to expose collected information to the user.
 Once you have filled out your collector. Any arguments should be added to the `CollectionConstuctor` and method should also be defined on the `CollectionConstuctor`.
 You will then need to add a call to the new method in the `setupCollectors` function in the runner package.
 Finally you will need add your collector to `collectorNames` so that it gets started by the runner.
