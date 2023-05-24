@@ -1,6 +1,6 @@
 # synchronization-testsuites
 
-The purpose of this project is to make a single repository for tools to collect data from a running OpenShift cluster, this data will then be given to analysis tools to determin if the cluter is running within acceptable bounds.
+The main purpose of this repo is build the necessary tooling to collect necessary synchronization-related data logs from a running OpenShift cluster. This data will then be leveraged by different analysis tools to determine if the cluster is running within acceptable bounds synchronization-wise.```
 
 The core approach taken is to strongly encourage and enforce separation of concerns between:
 1. Declarative description of the cluster(s) under test
