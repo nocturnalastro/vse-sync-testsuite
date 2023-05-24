@@ -3,7 +3,7 @@
 Any collector must conform to the collector interface (TODO: link to collector interface). It should use the callback to expose collected information to the user.
 Once you have filled out your collector. Any arguments should be added to the `CollectionConstuctor` and method should also be defined on the `CollectionConstuctor`.
 You will then need to add a call to the new method in the `setupCollectors` function in the runner package.
-Finally you will need add your collector to `collectorNames` so that it gets started by the runner.
+As well as implementing your custom collector you will also need to extend `CollectionConstructor`, `setupCollectors()` and `collectorNames` to integrate it into the tool and allow the tool to use your new collector.
 
 An example of a very simple collector:
 
