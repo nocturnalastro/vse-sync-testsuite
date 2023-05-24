@@ -29,7 +29,7 @@ const (
 	VendorIntel = "0x8086"
 	DeviceE810  = "0x1593"
 
-	DeivceInfo = "device-info"
+	DeviceInfo = "device-info"
 	DLLInfo    = "dll-info"
 	GNNSSTTY   = "gnss-tty"
 	All        = "all"
@@ -40,7 +40,7 @@ const (
 )
 
 var collectables = [3]string{
-	DeivceInfo,
+	DeviceInfo,
 	DLLInfo,
 	GNNSSTTY,
 }
@@ -83,9 +83,9 @@ func (ptpDev *PTPCollector) ShouldPoll() bool {
 
 func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) {
 	switch key {
-	case DeivceInfo:
+	case DeviceInfo:
 		ptpDevInfo := devices.GetPTPDeviceInfo(ptpDev.interfaceName, ptpDev.ctx)
-		ptpDev.data[DeivceInfo] = ptpDevInfo
+		ptpDev.data[DeviceInfo] = ptpDevInfo
 		line, err = json.Marshal(ptpDevInfo)
 	case DLLInfo:
 		dllInfo := devices.GetDevDPLLInfo(ptpDev.ctx, ptpDev.interfaceName)
@@ -93,7 +93,7 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) {
 		line, err = json.Marshal(dllInfo)
 	case GNNSSTTY:
 		// TODO make lines and timeout configs
-		devInfo, ok := ptpDev.data[DeivceInfo].(devices.PTPDeviceInfo)
+		devInfo, ok := ptpDev.data[DeviceInfo].(devices.PTPDeviceInfo)
 		if !ok {
 			return nil, fmt.Errorf("DeviceInfo was not able to be unpacked")
 		}
@@ -158,10 +158,10 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 	data := make(map[string]interface{})
 	running := make(map[string]bool)
 
-	data[DeivceInfo] = devices.GetPTPDeviceInfo(constuctor.PTPInterface, ctx)
+	data[DeviceInfo] = devices.GetPTPDeviceInfo(constuctor.PTPInterface, ctx)
 	data[DLLInfo] = devices.GetDevDPLLInfo(ctx, constuctor.PTPInterface)
 
-	ptpDevInfo, ok := data[DeivceInfo].(devices.PTPDeviceInfo)
+	ptpDevInfo, ok := data[DeviceInfo].(devices.PTPDeviceInfo)
 	if !ok {
 		return &PTPCollector{}, fmt.Errorf("DeviceInfo was not able to be unpacked")
 	}
