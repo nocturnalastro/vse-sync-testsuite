@@ -18,7 +18,7 @@ install-tools:
 
 # Build test binary
 build:
-	PATH=${PATH}:${GOBIN} ginkgo build --race ./tests
+	PATH=${PATH}:${GOBIN} go build --race
 
 build-image:
 	podman build -t synctest:custom -f Containerfile
