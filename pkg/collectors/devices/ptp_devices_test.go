@@ -56,7 +56,7 @@ var _ = Describe("NewContainerContext", func() {
 			info := devices.GetPTPDeviceInfo("aFakeInterface", ctx)
 			Expect(info.DeviceID).To(Equal(devID))
 			Expect(info.VendorID).To(Equal(vendor))
-			Expect(info.TtyGNSS).To(Equal("/dev/" + gnssDev))
+			Expect(info.GNSSDev).To(Equal("/dev/" + gnssDev))
 		})
 	})
 	When("called GetDevDPLLInfo", func() {
@@ -75,22 +75,22 @@ var _ = Describe("NewContainerContext", func() {
 
 		})
 	})
-	When("called ReadTtyGNSS", func() {
-		It("should return a valid GNSSTTYLines", func() {
+	When("called ReadGNSSDev", func() {
+		It("should return a valid GNSSLines", func() {
 			line := "definitely a line from a log"
 			nLines := 1
 			timeout := 10
 			devInfo := devices.PTPDeviceInfo{
-				TtyGNSS: "/dev/gnss0",
+				GNSSDev: "/dev/gnss0",
 			}
-			key := fmt.Sprintf("timeout %d head -n %s %s", timeout, strconv.Itoa(nLines), devInfo.TtyGNSS)
+			key := fmt.Sprintf("timeout %d head -n %s %s", timeout, strconv.Itoa(nLines), devInfo.GNSSDev)
 
 			response[key] = []byte(line)
 
 			ctx, err := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			Expect(err).NotTo(HaveOccurred())
-			GNSSLines := devices.ReadTtyGNSS(ctx, devInfo, nLines, timeout)
-			Expect(GNSSLines.TTY).To(Equal(devInfo.TtyGNSS))
+			GNSSLines := devices.ReadGNSSDev(ctx, devInfo, nLines, timeout)
+			Expect(GNSSLines.Dev).To(Equal(devInfo.GNSSDev))
 			Expect(GNSSLines.Lines).To(Equal(line))
 		})
 	})

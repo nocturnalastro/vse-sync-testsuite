@@ -14,26 +14,26 @@ import (
 type PTPDeviceInfo struct {
 	VendorID string `json:"vendorId"`
 	DeviceID string `json:"deviceInfo"`
-	TtyGNSS  string `json:"ttyGNSS"` //nolint:tagliatelle // Because GNSS is an ancronym
+	GNSSDev  string `json:"GNSSDev"` //nolint:tagliatelle // Because GNSS is an ancronym
 }
 
 type DevDPLLInfo struct {
 	State  string `json:"state"`
 	Offset string `json:"offset"`
 }
-type GNSSTTYLines struct {
-	TTY   string `json:"tty"`
+type GNSSDevLines struct {
+	Dev   string `json:"dev"`
 	Lines string `json:"lines"`
 }
 
 func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (devInfo PTPDeviceInfo) {
-	// Find the tty for the GNSS for this interface
-	GNSStty := commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
+	// Find the dev for the GNSS for this interface
+	gnssDev := commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
 		"ls", "/sys/class/net/" + interfaceName + "/device/gnss/",
 	})
 
-	devInfo.TtyGNSS = "/dev/" + GNSStty
-	log.Debugf("got tty for %s:  %s", interfaceName, devInfo.TtyGNSS)
+	devInfo.GNSSDev = "/dev/" + gnssDev
+	log.Debugf("got dev for %s:  %s", interfaceName, devInfo.GNSSDev)
 
 	// expecting a string like 0x1593
 	devInfo.DeviceID = commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
@@ -61,13 +61,13 @@ func commandWithPostprocessFunc(ctx clients.ContainerContext, cleanupFunc func(s
 	return cleanupFunc(stdout)
 }
 
-// Read lines from the ttyGNSS of the passed devInfo.
-func ReadTtyGNSS(ctx clients.ContainerContext, devInfo PTPDeviceInfo, lines, timeoutSeconds int) GNSSTTYLines {
+// Read lines from the GNSSDev of the passed devInfo.
+func ReadGNSSDev(ctx clients.ContainerContext, devInfo PTPDeviceInfo, lines, timeoutSeconds int) GNSSDevLines {
 	content := commandWithPostprocessFunc(ctx, strings.TrimSpace, []string{
-		"timeout", strconv.Itoa(timeoutSeconds), "head", "-n", strconv.Itoa(lines), devInfo.TtyGNSS,
+		"timeout", strconv.Itoa(timeoutSeconds), "head", "-n", strconv.Itoa(lines), devInfo.GNSSDev,
 	})
-	return GNSSTTYLines{
-		TTY:   devInfo.TtyGNSS,
+	return GNSSDevLines{
+		Dev:   devInfo.GNSSDev,
 		Lines: content,
 	}
 }

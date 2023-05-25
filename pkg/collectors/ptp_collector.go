@@ -31,7 +31,7 @@ const (
 
 	DeviceInfo = "device-info"
 	DLLInfo    = "dll-info"
-	GNNSSTTY   = "gnss-tty"
+	GNNSSDev   = "gnss-dev"
 	All        = "all"
 
 	PTPNamespace  = "openshift-ptp"
@@ -42,7 +42,7 @@ const (
 var collectables = [3]string{
 	DeviceInfo,
 	DLLInfo,
-	GNNSSTTY,
+	GNNSSDev,
 }
 
 func (ptpDev *PTPCollector) getNotCollectableError(key string) error {
@@ -90,16 +90,16 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) {
 		dllInfo := devices.GetDevDPLLInfo(ptpDev.ctx, ptpDev.interfaceName)
 		ptpDev.data[DLLInfo] = dllInfo
 		line, err = json.Marshal(dllInfo)
-	case GNNSSTTY:
+	case GNNSSDev:
 		// TODO make lines and timeout configs
 		devInfo, ok := ptpDev.data[DeviceInfo].(devices.PTPDeviceInfo)
 		if !ok {
 			return nil, fmt.Errorf("DeviceInfo was not able to be unpacked")
 		}
-		gnssTTYLine := devices.ReadTtyGNSS(ptpDev.ctx, devInfo, 1, 1)
+		gnssDevLine := devices.ReadGNSSDev(ptpDev.ctx, devInfo, 1, 1)
 
-		ptpDev.data[GNNSSTTY] = gnssTTYLine
-		line, err = json.Marshal(gnssTTYLine)
+		ptpDev.data[GNNSSDev] = gnssDevLine
+		line, err = json.Marshal(gnssDevLine)
 	default:
 		return nil, ptpDev.getNotCollectableError(key)
 	}
