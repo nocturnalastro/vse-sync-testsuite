@@ -3,12 +3,15 @@
 package testutils
 
 import (
-	"context"
+	context "context"
 	"fmt"
 	"net/url"
 
+	gomock "github.com/golang/mock/gomock"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/testutils/mocks"
 )
 
 // Return a SPDYExectuor with stdout, stderr and an error embedded
@@ -51,4 +54,11 @@ func (f *fakeExecutor) StreamWithContext(ctx context.Context, options remotecomm
 		return fmt.Errorf("failed to write stderr Error: %w", err)
 	}
 	return reponseErr
+}
+
+func NewMockedNewSPDYExecutor(ctrl *gomock.Controller, mockedExec *mocks.MockExecutor, execCreationErr error,
+) func(config *rest.Config, method string, url *url.URL) (remotecommand.Executor, error) {
+	return func(config *rest.Config, method string, url *url.URL) (remotecommand.Executor, error) {
+		return mockedExec, execCreationErr
+	}
 }

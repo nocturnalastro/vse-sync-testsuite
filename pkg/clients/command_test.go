@@ -3,18 +3,21 @@
 package clients_test
 
 import (
+	"context"
 	"errors"
-	"net/url"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/golang/mock/gomock"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeK8s "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/testutils"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/testutils/mocks"
 )
 
 var notATestPod = &v1.Pod{
@@ -73,10 +76,22 @@ var _ = Describe("ExecCommandContainer", func() {
 		It("should exec the command and return the std buffers", func() {
 			expectedStdOut := "my test command stdout"
 			expectedStdErr := "my test command stderr"
-			responder := func(method string, url *url.URL) ([]byte, []byte, error) {
-				return []byte(expectedStdOut), []byte(expectedStdErr), nil
-			}
-			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(responder, nil)
+			// responder := func(method string, url *url.URL) ([]byte, []byte, error) {
+			// 	return []byte(expectedStdOut), []byte(expectedStdErr), nil
+			// }
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockExec := mocks.NewMockExecutor(mockCtrl)
+			mockExec.
+				EXPECT().
+				StreamWithContext(gomock.Any(), gomock.Any()).
+				Return(nil).
+				Do(func(ctx context.Context, options remotecommand.StreamOptions) {
+					_, _ = options.Stdout.Write([]byte(expectedStdOut))
+					_, _ = options.Stderr.Write([]byte(expectedStdErr))
+				}).Times(1)
+
+			clients.NewSPDYExecutor = testutils.NewMockedNewSPDYExecutor(mockCtrl, mockExec, nil)
 			ctx, _ := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			cmd := []string{"my", "test", "command"}
 			stdout, stderr, err := clientset.ExecCommandContainer(ctx, cmd)
@@ -92,10 +107,10 @@ var _ = Describe("ExecCommandContainer", func() {
 			expectedStdOut := ""
 			expectedStdErr := ""
 			expectedErr := errors.New("Something went horribly wrong when creating the executor")
-			responder := func(method string, url *url.URL) ([]byte, []byte, error) {
-				return []byte(expectedStdOut), []byte(expectedStdErr), nil
-			}
-			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(responder, expectedErr)
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockExec := mocks.NewMockExecutor(mockCtrl)
+			clients.NewSPDYExecutor = testutils.NewMockedNewSPDYExecutor(mockCtrl, mockExec, expectedErr)
 			ctx, _ := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			cmd := []string{"my", "test", "command"}
 			stdout, stderr, err := clientset.ExecCommandContainer(ctx, cmd)
@@ -111,10 +126,14 @@ var _ = Describe("ExecCommandContainer", func() {
 			expectedStdOut := ""
 			expectedStdErr := ""
 			expectedErr := errors.New("Something went horribly wrong with the stream")
-			responder := func(method string, url *url.URL) ([]byte, []byte, error) {
-				return []byte(expectedStdOut), []byte(expectedStdErr), expectedErr
-			}
-			clients.NewSPDYExecutor = testutils.NewFakeNewSPDYExecutor(responder, nil)
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockExec := mocks.NewMockExecutor(mockCtrl)
+			mockExec.
+				EXPECT().
+				StreamWithContext(gomock.Any(), gomock.Any()).
+				Return(expectedErr)
+			clients.NewSPDYExecutor = testutils.NewMockedNewSPDYExecutor(mockCtrl, mockExec, nil)
 			ctx, _ := clients.NewContainerContext(clientset, "TestNamespace", "Test", "TestContainer")
 			cmd := []string{"my", "test", "command"}
 			stdout, stderr, err := clientset.ExecCommandContainer(ctx, cmd)

@@ -3,6 +3,7 @@ module github.com/redhat-partner-solutions/vse-sync-testsuite
 go 1.18
 
 require (
+	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo/v2 v2.9.0
 	github.com/onsi/gomega v1.27.1
 	github.com/openshift/client-go v0.0.0-20230120202327-72f107311084
