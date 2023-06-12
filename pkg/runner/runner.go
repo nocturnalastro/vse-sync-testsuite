@@ -179,7 +179,7 @@ func (runner *CollectorRunner) cleanUpAll() {
 // It first initialises them,
 // then polls them on the correct cadence and
 // finally cleans up the collectors when exiting
-func (runner *CollectorRunner) Run(
+func (runner *CollectorRunner) Run( //nolint:lll // allow slightly long function definition
 	kubeConfig string,
 	outputFile string,
 	pollCount int,
