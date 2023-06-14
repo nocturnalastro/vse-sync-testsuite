@@ -27,7 +27,6 @@ var (
 type GPSCollector struct {
 	lastPoll        time.Time
 	callback        callbacks.Callback
-	data            devices.GPSNav
 	DataTypes       [1]string
 	interfaceName   string
 	ctx             clients.ContainerContext
@@ -74,11 +73,11 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 	defer gps.runningPolls.Done()
 
 	gps.lock.Lock()
-	defer gps.lock.Unlock()
-
 	gps.lastPoll = time.Now()
 
 	gpsNav, err := devices.GetGPSNav(gps.ctx)
+	gps.lock.Unlock()
+
 	if err != nil {
 		resultsChan <- PollResult{
 			CollectorName: GPSCollectorName,
@@ -87,7 +86,6 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 		return
 	}
 
-	gps.data = gpsNav
 	line, err := json.Marshal(gpsNav)
 	if err != nil {
 		resultsChan <- PollResult{
@@ -140,7 +138,6 @@ func (constuctor *CollectionConstuctor) NewGPSCollector() (*GPSCollector, error)
 		interfaceName:   constuctor.PTPInterface,
 		ctx:             ctx,
 		DataTypes:       ubxCollectables,
-		data:            devices.GPSNav{},
 		running:         false,
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
