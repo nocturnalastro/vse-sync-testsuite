@@ -27,6 +27,7 @@ var (
 		timeStampPattern +
 			`\nUBX-NAV-STATUS:\n\s+iTOW (\d+) gpsFix (\d) flags (.*) fixStat ` +
 			`(.*) flags2\s(.*)\n\s+ttff\s(\d+), msss (\d+)\n\n` +
+			`.*` +
 			timeStampPattern +
 			`\nUBX-NAV-CLOCK:\n\s+iTOW (\d+) clkB (\d+) clkD (\d+) tAcc (\d+) fAcc (\d+)`,
 	)
