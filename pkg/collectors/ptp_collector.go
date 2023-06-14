@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -26,6 +27,7 @@ type PTPCollector struct {
 	interfaceName   string
 	ctx             clients.ContainerContext
 	inversePollRate float64
+	lock            sync.Mutex
 }
 
 const (
@@ -83,6 +85,9 @@ func (ptpDev *PTPCollector) Start(key string) error {
 
 // ShouldPoll checks if enough time has passed since the last poll
 func (ptpDev *PTPCollector) ShouldPoll() bool {
+	ptpDev.lock.Lock()
+	defer ptpDev.lock.Unlock()
+
 	log.Debugf("since: %v", time.Since(ptpDev.lastPoll).Seconds())
 	log.Debugf("wait: %v", ptpDev.inversePollRate)
 	return time.Since(ptpDev.lastPoll).Seconds() >= ptpDev.inversePollRate
@@ -150,7 +155,9 @@ func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
 			}
 		}
 	}
+	ptpDev.lock.Lock()
 	ptpDev.lastPoll = time.Now()
+	ptpDev.lock.Unlock()
 
 	resultsChan <- PollResult{
 		CollectorName: PTPCollectorName,

@@ -5,6 +5,7 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -32,6 +33,7 @@ type GPSCollector struct {
 	ctx             clients.ContainerContext
 	inversePollRate float64
 	running         bool
+	lock            sync.Mutex
 }
 
 // Start will add the key to the running pieces of data
@@ -48,6 +50,8 @@ func (gps *GPSCollector) Start(key string) error {
 
 // ShouldPoll checks if enough time has passed since the last poll
 func (gps *GPSCollector) ShouldPoll() bool {
+	gps.lock.Lock()
+	defer gps.lock.Unlock()
 	log.Debugf("since: %v", time.Since(gps.lastPoll).Seconds())
 	log.Debugf("wait: %v", gps.inversePollRate)
 	return time.Since(gps.lastPoll).Seconds() >= gps.inversePollRate
@@ -85,8 +89,9 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 			return
 		}
 	}
-
+	gps.lock.Lock()
 	gps.lastPoll = time.Now()
+	gps.lock.Unlock()
 	resultsChan <- PollResult{
 		CollectorName: GPSCollectorName,
 		Errors:        []error{},
