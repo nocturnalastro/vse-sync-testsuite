@@ -85,7 +85,9 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 		}
 		return
 	}
+	gps.lock.Lock()
 	gps.data = gpsNav
+	gps.lock.Unlock()
 	line, err := json.Marshal(gpsNav)
 	if err != nil {
 		resultsChan <- PollResult{

@@ -108,6 +108,8 @@ func (ptpDev *PTPCollector) ShouldPoll() bool {
 // store the result of that function into the collectors data
 // and returns a json encoded version of that data
 func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) { //nolint:funlen // allow slightly long function
+	ptpDev.lock.Lock()
+	defer ptpDev.lock.Unlock()
 	switch key {
 	case DeviceInfo:
 		ptpDevInfo, fetchError := devices.GetPTPDeviceInfo(ptpDev.interfaceName, ptpDev.ctx)
