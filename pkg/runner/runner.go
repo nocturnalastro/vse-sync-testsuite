@@ -137,7 +137,9 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 					Errors:        errors,
 				}
 			}
-			time.Sleep(time.Duration(float64(time.Second.Nanoseconds()) / runner.pollRate))
+			if !collector.ShouldPoll() {
+				time.Sleep(time.Microsecond)
+			}
 		}
 	}
 	log.Debugf("Collector finished %s", collectorName)
