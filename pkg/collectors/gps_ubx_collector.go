@@ -63,6 +63,10 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 	gps.wg.Add(1)
 	defer gps.wg.Done()
 
+	gps.lock.Lock()
+	gps.lastPoll = time.Now()
+	gps.lock.Unlock()
+
 	gpsNav, err := devices.GetGPSNav(gps.ctx)
 	if err != nil {
 		resultsChan <- PollResult{
@@ -89,9 +93,7 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 			return
 		}
 	}
-	gps.lock.Lock()
-	gps.lastPoll = time.Now()
-	gps.lock.Unlock()
+
 	resultsChan <- PollResult{
 		CollectorName: GPSCollectorName,
 		Errors:        []error{},

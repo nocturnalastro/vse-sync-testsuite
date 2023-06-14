@@ -139,6 +139,10 @@ func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
 	ptpDev.wg.Add(1)
 	defer ptpDev.wg.Done()
 
+	ptpDev.lock.Lock()
+	ptpDev.lastPoll = time.Now()
+	ptpDev.lock.Unlock()
+
 	errorsToReturn := make([]error, 0)
 
 	for key, isRunning := range ptpDev.running {
@@ -155,9 +159,6 @@ func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
 			}
 		}
 	}
-	ptpDev.lock.Lock()
-	ptpDev.lastPoll = time.Now()
-	ptpDev.lock.Unlock()
 
 	resultsChan <- PollResult{
 		CollectorName: PTPCollectorName,
