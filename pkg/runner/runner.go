@@ -126,7 +126,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 		select {
 		case <-quit:
 			log.Infof("Killed shutting down collector %s", collectorName)
-			collector.GetRunningPollsWG().Wait()
+			collector.Wait()
 			return
 		default:
 			if lastPoll.IsZero() || time.Since(lastPoll).Seconds() > inversePollRate {

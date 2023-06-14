@@ -30,8 +30,8 @@ type GPSCollector struct {
 	running       bool
 }
 
-func (gps *GPSCollector) GetRunningPollsWG() *utils.WaitGroupCount {
-	return &gps.runningPolls
+func (gps *GPSCollector) Wait() {
+	gps.runningPolls.Wait()
 }
 
 // Start will add the key to the running pieces of data

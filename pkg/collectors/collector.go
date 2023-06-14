@@ -5,7 +5,6 @@ package collectors
 import (
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
-	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
 
 type Collector interface {
@@ -13,7 +12,7 @@ type Collector interface {
 	Poll(chan PollResult)     // Poll for collectables
 	CleanUp(key string) error // Cleans up any internal state
 	GetPollCount() int
-	GetRunningPollsWG() *utils.WaitGroupCount
+	Wait()
 }
 
 // A union of all values required to be passed into all constuctions

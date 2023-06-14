@@ -51,8 +51,8 @@ var ptpCollectables = [2]string{
 	// GNSSDev,
 }
 
-func (ptpDev *PTPCollector) GetRunningPollsWG() *utils.WaitGroupCount {
-	return &ptpDev.runningPolls
+func (ptpDev *PTPCollector) Wait() {
+	ptpDev.runningPolls.Wait()
 }
 
 func (ptpDev *PTPCollector) getNotCollectableError(key string) error {
