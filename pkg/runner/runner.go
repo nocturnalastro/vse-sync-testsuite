@@ -131,7 +131,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 		default:
 			log.Debug("ShouldPoll0:", collector.ShouldPoll())
 
-			if !lastPoll.IsZero() || time.Since(lastPoll).Seconds() > inversePollRate {
+			if lastPoll.IsZero() || time.Since(lastPoll).Seconds() > inversePollRate {
 				lastPoll = time.Now()
 				log.Debugf("poll %s", collectorName)
 				go collector.Poll(runner.pollResults)
