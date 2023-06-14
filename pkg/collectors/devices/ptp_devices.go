@@ -5,15 +5,10 @@ package devices
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
-)
-
-var (
-	fetcherMutex sync.Mutex
 )
 
 type PTPDeviceInfo struct {
@@ -47,48 +42,52 @@ func init() {
 	dateCmd.SetCleanupFunc(strings.TrimSpace)
 }
 
-//nolint:funlen // Allow a slightly long function
+func BuildPTPDeviceInfoFetcher(interfaceName string) error {
+	fetcherInst := NewFetcher()
+	devFetcher[interfaceName] = fetcherInst
+
+	fetcherInst.AddCommand(dateCmd)
+
+	err := fetcherInst.AddNewCommand(
+		"gnss",
+		fmt.Sprintf("ls /sys/class/net/%s/device/gnss/", interfaceName),
+		true,
+	)
+	if err != nil {
+		log.Errorf("failed to add command %s %s", "gnss", err.Error())
+		return fmt.Errorf("failed to fetch devInfo %w", err)
+	}
+
+	err = fetcherInst.AddNewCommand(
+		"devID",
+		fmt.Sprintf("cat /sys/class/net/%s/device/device", interfaceName),
+		true,
+	)
+	if err != nil {
+		log.Errorf("failed to add command %s %s", "devId", err.Error())
+		return fmt.Errorf("failed to fetch devInfo %w", err)
+	}
+	err = fetcherInst.AddNewCommand("vendorID",
+		fmt.Sprintf("cat /sys/class/net/%s/device/vendor", interfaceName),
+		true,
+	)
+	if err != nil {
+		log.Errorf("failed to add command %s %s", "vendorID", err.Error())
+		return fmt.Errorf("failed to fetch devInfo %w", err)
+	}
+	return nil
+}
+
 func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDeviceInfo, error) {
 	devInfo := PTPDeviceInfo{}
 	// Find the dev for the GNSS for this interface
 	fetcherInst, ok := devFetcher[interfaceName]
 	if !ok {
-		fetcherMutex.Lock()
-		defer fetcherMutex.Unlock()
-		fetcherInst = NewFetcher()
-		devFetcher[interfaceName] = fetcherInst
-
-		fetcherInst.AddCommand(dateCmd)
-
-		err := fetcherInst.AddNewCommand(
-			"gnss",
-			fmt.Sprintf("ls /sys/class/net/%s/device/gnss/", interfaceName),
-			true,
-		)
+		err := BuildPTPDeviceInfoFetcher(interfaceName)
 		if err != nil {
-			log.Errorf("failed to add command %s %s", "gnss", err.Error())
-			return devInfo, fmt.Errorf("failed to fetch devInfo %w", err)
-		}
-
-		err = fetcherInst.AddNewCommand(
-			"devID",
-			fmt.Sprintf("cat /sys/class/net/%s/device/device", interfaceName),
-			true,
-		)
-		if err != nil {
-			log.Errorf("failed to add command %s %s", "devId", err.Error())
-			return devInfo, fmt.Errorf("failed to fetch devInfo %w", err)
-		}
-		err = fetcherInst.AddNewCommand("vendorID",
-			fmt.Sprintf("cat /sys/class/net/%s/device/vendor", interfaceName),
-			true,
-		)
-		if err != nil {
-			log.Errorf("failed to add command %s %s", "vendorID", err.Error())
-			return devInfo, fmt.Errorf("failed to fetch devInfo %w", err)
+			return devInfo, err
 		}
 	}
-
 	err := fetcherInst.Fetch(ctx, &devInfo)
 	if err != nil {
 		log.Errorf("failed to fetch devInfo %s", err.Error())
@@ -98,45 +97,51 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDe
 	return devInfo, nil
 }
 
+func BuildDPLLFetcher(interfaceName string) error {
+	fetcherInst := NewFetcher()
+	dpllFetcher[interfaceName] = fetcherInst
+
+	fetcherInst.AddCommand(dateCmd)
+
+	err := fetcherInst.AddNewCommand(
+		"dpll_0_state",
+		fmt.Sprintf("cat /sys/class/net/%s/device/dpll_0_state", interfaceName),
+		true,
+	)
+	if err != nil {
+		log.Errorf("failed to add command %s %s", "dpll_0_state", err.Error())
+		return err
+	}
+
+	err = fetcherInst.AddNewCommand(
+		"dpll_1_state",
+		fmt.Sprintf("cat /sys/class/net/%s/device/dpll_1_state", interfaceName),
+		true,
+	)
+	if err != nil {
+		log.Errorf("failed to add command %s %s", "dpll_1_state", err.Error())
+		return err
+	}
+
+	err = fetcherInst.AddNewCommand(
+		"dpll_1_offset",
+		fmt.Sprintf("cat /sys/class/net/%s/device/dpll_1_offset", interfaceName),
+		true,
+	)
+	if err != nil {
+		log.Errorf("failed to add command %s %s", "dpll_1_offset", err.Error())
+		return err
+	}
+	return nil
+}
+
 // GetDevDPLLInfo returns the device DPLL info for an interface.
 func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (DevDPLLInfo, error) {
 	dpllInfo := DevDPLLInfo{}
 	fetcherInst, ok := dpllFetcher[interfaceName]
 	if !ok {
-		fetcherMutex.Lock()
-		defer fetcherMutex.Unlock()
-		fetcherInst = NewFetcher()
-		dpllFetcher[interfaceName] = fetcherInst
-
-		fetcherInst.AddCommand(dateCmd)
-
-		err := fetcherInst.AddNewCommand(
-			"dpll_0_state",
-			fmt.Sprintf("cat /sys/class/net/%s/device/dpll_0_state", interfaceName),
-			true,
-		)
+		err := BuildDPLLFetcher(interfaceName)
 		if err != nil {
-			log.Errorf("failed to add command %s %s", "dpll_0_state", err.Error())
-			return dpllInfo, err
-		}
-
-		err = fetcherInst.AddNewCommand(
-			"dpll_1_state",
-			fmt.Sprintf("cat /sys/class/net/%s/device/dpll_1_state", interfaceName),
-			true,
-		)
-		if err != nil {
-			log.Errorf("failed to add command %s %s", "dpll_1_state", err.Error())
-			return dpllInfo, err
-		}
-
-		err = fetcherInst.AddNewCommand(
-			"dpll_1_offset",
-			fmt.Sprintf("cat /sys/class/net/%s/device/dpll_1_offset", interfaceName),
-			true,
-		)
-		if err != nil {
-			log.Errorf("failed to add command %s %s", "dpll_1_offset", err.Error())
 			return dpllInfo, err
 		}
 	}

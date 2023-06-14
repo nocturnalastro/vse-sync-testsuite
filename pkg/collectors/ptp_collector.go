@@ -165,6 +165,16 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 
 	running := make(map[string]bool)
 
+	// Build fetcher for interface to avoid race
+	err = devices.BuildPTPDeviceInfoFetcher(constuctor.PTPInterface)
+	if err != nil {
+		return &PTPCollector{}, fmt.Errorf("failed to build data fetcher for PTPDeviceInfo %w", err)
+	}
+	err = devices.BuildDPLLFetcher(constuctor.PTPInterface)
+	if err != nil {
+		return &PTPCollector{}, fmt.Errorf("failed to build data fetcher for DPLL %w", err)
+	}
+
 	devInfo, err := devices.GetPTPDeviceInfo(constuctor.PTPInterface, ctx)
 	if err != nil {
 		return &PTPCollector{}, fmt.Errorf("failed to fetch initial DeviceInfo %w", err)
