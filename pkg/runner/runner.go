@@ -115,6 +115,10 @@ func (runner *CollectorRunner) initialise(
 
 func (runner *CollectorRunner) poller(collectorName string, collector collectors.Collector, quit chan os.Signal) {
 	defer runner.runningCollectorsWG.Done()
+
+	var lastPoll time.Time
+	inversePollRate := 1.0 / runner.pollRate
+
 	log.Debug("Poll count1:", collector.GetPollCount())
 	for runner.pollCount < 0 || collector.GetPollCount() < runner.pollCount {
 		log.Debug("Poll count2:", collector.GetPollCount())
@@ -126,7 +130,8 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 			return
 		default:
 			log.Debug("ShouldPoll0:", collector.ShouldPoll())
-			if collector.ShouldPoll() {
+
+			if !lastPoll.IsZero() && time.Since(lastPoll).Seconds() > inversePollRate {
 				log.Debugf("poll %s", collectorName)
 				go collector.Poll(runner.pollResults)
 				log.Debug("ShouldPoll:", collector.ShouldPoll())
