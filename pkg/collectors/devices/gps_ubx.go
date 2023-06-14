@@ -25,11 +25,11 @@ var (
 	timeStampPattern = `\d+(.\d+) (\w{3} \w{3} \d{1,2} \d{1,2}\:\d{1,2}\:\d{1,2}) (\d{4})`
 	ubxNavRegex      = regexp.MustCompile(
 		timeStampPattern +
-			`\nUBX-NAV-STATUS:\n\s+iTOW (\d+) gpsFix (\d) flags (.*) fixStat ` +
-			`(.*) flags2\s(.*)\n\s+ttff\s(\d+), msss (\d+)\n\n` +
-			`.*` +
+			`\s*UBX-NAV-STATUS:\s*iTOW (\d+) gpsFix (\d) flags (.*) fixStat ` +
+			`(.*) flags2\s(.*)\s*ttff\s(\d+), msss (\d+)\s*` +
+			`\s*gpsfix\s+.*\n\s*flags\s+.*\n\s*fixStat\s+.*\n\s*flags2\s+.*\n\s*` +
 			timeStampPattern +
-			`\nUBX-NAV-CLOCK:\n\s+iTOW (\d+) clkB (\d+) clkD (\d+) tAcc (\d+) fAcc (\d+)`,
+			`\s*UBX-NAV-CLOCK:\s*iTOW (\d+) clkB (\d+) clkD (\d+) tAcc (\d+) fAcc (\d+)`,
 	)
 	timeForm   = "Mon Jan _2 15:04:05 2006"
 	gpsFetcher *fetcher
