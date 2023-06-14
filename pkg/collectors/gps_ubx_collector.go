@@ -74,9 +74,9 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 
 	gps.lock.Lock()
 	gps.lastPoll = time.Now()
+	gps.lock.Unlock()
 
 	gpsNav, err := devices.GetGPSNav(gps.ctx)
-	gps.lock.Unlock()
 
 	if err != nil {
 		resultsChan <- PollResult{
