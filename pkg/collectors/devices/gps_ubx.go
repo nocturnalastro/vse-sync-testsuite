@@ -40,7 +40,7 @@ func init() {
 	gpsFetcher.SetPostProcesser(processUBXNav)
 	err := gpsFetcher.AddNewCommand(
 		"GPS",
-		"ubxtool -tt -w 4 -p NAV-STATUS -p NAV-CLOCK -P 29.20 -v 2",
+		"ubxtool -tt -p NAV-STATUS -p NAV-CLOCK -P 29.20 -v 2",
 		true,
 	)
 	if err != nil {
