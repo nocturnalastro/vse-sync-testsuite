@@ -93,7 +93,6 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDe
 			log.Errorf("failed to add command %s %s", "vendorID", err.Error())
 			return devInfo, fmt.Errorf("failed to fetch devInfo %w", err)
 		}
-
 	}
 
 	err := fetcherInst.Fetch(ctx, &devInfo)
@@ -179,7 +178,6 @@ func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (DevDPLL
 			log.Errorf("failed to add command %s %s", "dpll_1_offset", err.Error())
 			return dpllInfo, err
 		}
-		fetcherMutex.Unlock()
 	}
 	err := fetcherInst.Fetch(ctx, &dpllInfo)
 	if err != nil {
