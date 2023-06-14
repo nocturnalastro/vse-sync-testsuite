@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
 
 var (
@@ -24,6 +25,7 @@ var (
 type GPSCollector struct {
 	lastPoll        time.Time
 	callback        callbacks.Callback
+	wg              *utils.WaitGroupCount
 	data            devices.GPSNav
 	DataTypes       [1]string
 	interfaceName   string
@@ -53,24 +55,42 @@ func (gps *GPSCollector) ShouldPoll() bool {
 
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
-func (gps *GPSCollector) Poll() []error {
+func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
+	gps.wg.Add(1)
+	defer gps.wg.Done()
+
 	gpsNav, err := devices.GetGPSNav(gps.ctx)
 	if err != nil {
-		return []error{err}
+		resultsChan <- PollResult{
+			CollectorName: GPSCollectorName,
+			Errors:        []error{err},
+		}
+		return
 	}
 	gps.data = gpsNav
 	line, err := json.Marshal(gpsNav)
 	if err != nil {
-		return []error{err}
+		resultsChan <- PollResult{
+			CollectorName: GPSCollectorName,
+			Errors:        []error{err},
+		}
+		return
 	} else {
 		err = gps.callback.Call(fmt.Sprintf("%T", gps), GPSNavKey, string(line))
 		if err != nil {
-			return []error{err}
+			resultsChan <- PollResult{
+				CollectorName: GPSCollectorName,
+				Errors:        []error{err},
+			}
+			return
 		}
 	}
 
 	gps.lastPoll = time.Now()
-	return []error{}
+	resultsChan <- PollResult{
+		CollectorName: GPSCollectorName,
+		Errors:        []error{},
+	}
 }
 
 // CleanUp stops a running collector
@@ -105,6 +125,7 @@ func (constuctor *CollectionConstuctor) NewGPSCollector() (*GPSCollector, error)
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
 		lastPoll:        time.Now().Add(-offset), // Subtract off a polling time so the first poll hits
+		wg:              constuctor.WG,
 	}
 
 	return &collector, nil

@@ -13,6 +13,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
 
 type PTPCollector struct {
@@ -20,6 +21,7 @@ type PTPCollector struct {
 	callback        callbacks.Callback
 	data            map[string]interface{}
 	running         map[string]bool
+	wg              *utils.WaitGroupCount
 	DataTypes       [2]string
 	interfaceName   string
 	ctx             clients.ContainerContext
@@ -128,7 +130,10 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) { //n
 
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
-func (ptpDev *PTPCollector) Poll() []error {
+func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
+	ptpDev.wg.Add(1)
+	defer ptpDev.wg.Done()
+
 	errorsToReturn := make([]error, 0)
 
 	for key, isRunning := range ptpDev.running {
@@ -146,7 +151,11 @@ func (ptpDev *PTPCollector) Poll() []error {
 		}
 	}
 	ptpDev.lastPoll = time.Now()
-	return errorsToReturn
+
+	resultsChan <- PollResult{
+		CollectorName: PTPCollectorName,
+		Errors:        errorsToReturn,
+	}
 }
 
 // CleanUp stops a running collector
@@ -204,6 +213,7 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
 		lastPoll:        time.Now().Add(-offset), // Subtract off a polling time so the first poll hits
+		wg:              constuctor.WG,
 	}
 
 	return &collector, nil

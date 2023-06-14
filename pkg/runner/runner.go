@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -46,21 +44,16 @@ func selectCollectorCallback(outputFile string) (callbacks.Callback, error) {
 	}
 }
 
-type PollResult struct {
-	CollectorName string
-	Errors        []error
-}
-
 type CollectorRunner struct {
 	quit                  chan os.Signal
 	collectorQuitChannel  map[string]chan os.Signal
-	pollResults           chan PollResult
+	pollResults           chan collectors.PollResult
 	collecterInstances    map[string]*collectors.Collector
 	consecutivePollErrors map[string]int
 	collectorNames        []string
 	pollCount             int
 	pollRate              float64
-	runningCollectorsWG   WaitGroupCount
+	runningCollectorsWG   utils.WaitGroupCount
 }
 
 func NewCollectorRunner() *CollectorRunner {
@@ -70,7 +63,7 @@ func NewCollectorRunner() *CollectorRunner {
 		collecterInstances:    make(map[string]*collectors.Collector),
 		collectorNames:        collectorNames,
 		quit:                  getQuitChannel(),
-		pollResults:           make(chan PollResult, pollResultsQueueSize),
+		pollResults:           make(chan collectors.PollResult, pollResultsQueueSize),
 		collectorQuitChannel:  make(map[string]chan os.Signal, 1),
 		consecutivePollErrors: make(map[string]int),
 	}
@@ -93,6 +86,7 @@ func (runner *CollectorRunner) initialise(
 		PTPInterface: ptpInterface,
 		Clientset:    clientset,
 		PollRate:     pollRate,
+		WG:           &runner.runningCollectorsWG,
 	}
 
 	for _, constuctorName := range runner.collectorNames {
@@ -131,11 +125,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 		default:
 			if collector.ShouldPoll() {
 				log.Debugf("poll %s", collectorName)
-				errors := collector.Poll()
-				runner.pollResults <- PollResult{
-					CollectorName: collectorName,
-					Errors:        errors,
-				}
+				go collector.Poll(runner.pollResults)
 			}
 			if !collector.ShouldPoll() {
 				time.Sleep(time.Microsecond)
@@ -234,23 +224,4 @@ func (runner *CollectorRunner) Run(
 	runner.cleanUpAll()
 	err = callback.CleanUp()
 	utils.IfErrorPanic(err)
-}
-
-type WaitGroupCount struct {
-	sync.WaitGroup
-	count int64
-}
-
-func (wg *WaitGroupCount) Add(delta int) {
-	atomic.AddInt64(&wg.count, int64(delta))
-	wg.WaitGroup.Add(delta)
-}
-
-func (wg *WaitGroupCount) Done() {
-	atomic.AddInt64(&wg.count, -1)
-	wg.WaitGroup.Done()
-}
-
-func (wg *WaitGroupCount) GetCount() int {
-	return int(atomic.LoadInt64(&wg.count))
 }
