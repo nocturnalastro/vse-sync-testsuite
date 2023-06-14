@@ -23,7 +23,7 @@ type PTPCollector struct {
 	callback        callbacks.Callback
 	data            map[string]interface{}
 	running         map[string]bool
-	wg              *utils.WaitGroupCount
+	runningPolls    utils.WaitGroupCount
 	DataTypes       [2]string
 	interfaceName   string
 	ctx             clients.ContainerContext
@@ -52,6 +52,10 @@ var ptpCollectables = [2]string{
 	DeviceInfo,
 	DPLLInfo,
 	// GNSSDev,
+}
+
+func (ptpDev *PTPCollector) GetRunningPollsWG() *utils.WaitGroupCount {
+	return &ptpDev.runningPolls
 }
 
 func (ptpDev *PTPCollector) getNotCollectableError(key string) error {
@@ -142,8 +146,8 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) { //n
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
 func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
-	ptpDev.wg.Add(1)
-	defer ptpDev.wg.Done()
+	ptpDev.runningPolls.Add(1)
+	defer ptpDev.runningPolls.Done()
 
 	ptpDev.lock.Lock()
 	ptpDev.lastPoll = time.Now()
@@ -229,7 +233,6 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
 		lastPoll:        time.Now().Add(-offset), // Subtract off a polling time so the first poll hits
-		wg:              constuctor.WG,
 	}
 
 	return &collector, nil

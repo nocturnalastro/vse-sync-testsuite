@@ -14,13 +14,13 @@ type Collector interface {
 	Poll(chan PollResult)     // Poll for collectables
 	CleanUp(key string) error // Cleans up any internal state
 	GetPollCount() int
+	GetRunningPollsWG() *utils.WaitGroupCount
 }
 
 // A union of all values required to be passed into all constuctions
 type CollectionConstuctor struct {
 	Callback     callbacks.Callback
 	Clientset    *clients.Clientset
-	WG           *utils.WaitGroupCount
 	PTPInterface string
 	Msg          string
 	PollRate     float64

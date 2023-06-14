@@ -86,7 +86,6 @@ func (runner *CollectorRunner) initialise(
 		PTPInterface: ptpInterface,
 		Clientset:    clientset,
 		PollRate:     pollRate,
-		WG:           &runner.runningCollectorsWG,
 	}
 
 	for _, constuctorName := range runner.collectorNames {
@@ -121,6 +120,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 		select {
 		case <-quit:
 			log.Infof("Killed shutting down collector %s", collectorName)
+			collector.GetRunningPollsWG().Wait()
 			return
 		default:
 			log.Debug("ShouldPoll0:", collector.ShouldPoll())

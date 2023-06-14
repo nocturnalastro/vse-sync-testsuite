@@ -27,7 +27,7 @@ var (
 type GPSCollector struct {
 	lastPoll        time.Time
 	callback        callbacks.Callback
-	wg              *utils.WaitGroupCount
+	runningPolls    utils.WaitGroupCount
 	data            devices.GPSNav
 	DataTypes       [1]string
 	interfaceName   string
@@ -36,6 +36,10 @@ type GPSCollector struct {
 	running         bool
 	lock            sync.Mutex
 	count           int32
+}
+
+func (gps *GPSCollector) GetRunningPollsWG() *utils.WaitGroupCount {
+	return &gps.runningPolls
 }
 
 // Start will add the key to the running pieces of data
@@ -66,8 +70,8 @@ func (gps *GPSCollector) ShouldPoll() bool {
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
 func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
-	gps.wg.Add(1)
-	defer gps.wg.Done()
+	gps.runningPolls.Add(1)
+	defer gps.runningPolls.Done()
 
 	gps.lock.Lock()
 	gps.lastPoll = time.Now()
@@ -139,7 +143,6 @@ func (constuctor *CollectionConstuctor) NewGPSCollector() (*GPSCollector, error)
 		callback:        constuctor.Callback,
 		inversePollRate: inversePollRate,
 		lastPoll:        time.Now().Add(-offset), // Subtract off a polling time so the first poll hits
-		wg:              constuctor.WG,
 	}
 
 	return &collector, nil
