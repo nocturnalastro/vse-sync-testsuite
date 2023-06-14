@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -28,6 +29,7 @@ type PTPCollector struct {
 	ctx             clients.ContainerContext
 	inversePollRate float64
 	lock            sync.Mutex
+	count           int32
 }
 
 const (
@@ -81,6 +83,10 @@ func (ptpDev *PTPCollector) Start(key string) error {
 		ptpDev.running[key] = true
 	}
 	return nil
+}
+
+func (ptpDev *PTPCollector) GetPollCount() int {
+	return int(atomic.LoadInt32(&ptpDev.count))
 }
 
 // ShouldPoll checks if enough time has passed since the last poll
@@ -159,6 +165,8 @@ func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
 			}
 		}
 	}
+
+	atomic.AddInt32(&ptpDev.count, 1)
 
 	resultsChan <- PollResult{
 		CollectorName: PTPCollectorName,

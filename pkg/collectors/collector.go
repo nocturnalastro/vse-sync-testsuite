@@ -13,6 +13,7 @@ type Collector interface {
 	ShouldPoll() bool         // Check if poll time has alapsed and if it should be polled again
 	Poll(chan PollResult)     // Poll for collectables
 	CleanUp(key string) error // Cleans up any internal state
+	GetPollCount() int
 }
 
 // A union of all values required to be passed into all constuctions

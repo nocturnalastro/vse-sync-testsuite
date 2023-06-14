@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -34,6 +35,7 @@ type GPSCollector struct {
 	inversePollRate float64
 	running         bool
 	lock            sync.Mutex
+	count           int32
 }
 
 // Start will add the key to the running pieces of data
@@ -46,6 +48,10 @@ func (gps *GPSCollector) Start(key string) error {
 		return fmt.Errorf("key %s is not a colletable of %T", key, gps)
 	}
 	return nil
+}
+
+func (gps *GPSCollector) GetPollCount() int {
+	return int(atomic.LoadInt32(&gps.count))
 }
 
 // ShouldPoll checks if enough time has passed since the last poll
@@ -94,6 +100,7 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 		}
 	}
 
+	atomic.AddInt32(&gps.count, 1)
 	resultsChan <- PollResult{
 		CollectorName: GPSCollectorName,
 		Errors:        []error{},
