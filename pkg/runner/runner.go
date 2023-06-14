@@ -104,7 +104,7 @@ func (runner *CollectorRunner) initialise(
 			log.Debug("PTP Collector")
 		default:
 			newCollector = nil
-			panic("Unknown collector")
+			log.Panic("Unknown collector")
 		}
 		if newCollector != nil {
 			runner.collecterInstances[constuctorName] = &newCollector
@@ -121,9 +121,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 	inversePollRate := 1.0 / runner.pollRate
 	var runningPolls sync.WaitGroup
 
-	log.Debug("Poll count1:", collector.GetPollCount())
 	for runner.pollCount < 0 || collector.GetPollCount() < runner.pollCount {
-		log.Debug("Poll count2:", collector.GetPollCount())
 		log.Debugf("Collector GoRoutine: %s", collectorName)
 		select {
 		case <-quit:
