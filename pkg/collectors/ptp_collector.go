@@ -20,7 +20,7 @@ type PTPCollector struct {
 	callback        callbacks.Callback
 	data            map[string]interface{}
 	running         map[string]bool
-	DataTypes       [3]string
+	DataTypes       [2]string
 	interfaceName   string
 	ctx             clients.ContainerContext
 	inversePollRate float64
@@ -42,10 +42,10 @@ const (
 	PTPContainer  = "linuxptp-daemon-container"
 )
 
-var ptpCollectables = [3]string{
+var ptpCollectables = [2]string{
 	DeviceInfo,
 	DPLLInfo,
-	GNSSDev,
+	// GNSSDev,
 }
 
 func (ptpDev *PTPCollector) getNotCollectableError(key string) error {
