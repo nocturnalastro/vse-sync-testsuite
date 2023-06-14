@@ -115,7 +115,9 @@ func (runner *CollectorRunner) initialise(
 
 func (runner *CollectorRunner) poller(collectorName string, collector collectors.Collector, quit chan os.Signal) {
 	defer runner.runningCollectorsWG.Done()
+	log.Debug("Poll count1:", collector.GetPollCount())
 	for runner.pollCount < 0 || collector.GetPollCount() >= runner.pollCount {
+		log.Debug("Poll count2:", collector.GetPollCount())
 		log.Debugf("Collector GoRoutine: %s", collectorName)
 		select {
 		case <-quit:

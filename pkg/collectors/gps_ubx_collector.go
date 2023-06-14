@@ -27,15 +27,15 @@ var (
 type GPSCollector struct {
 	lastPoll        time.Time
 	callback        callbacks.Callback
-	runningPolls    utils.WaitGroupCount
 	data            devices.GPSNav
 	DataTypes       [1]string
 	interfaceName   string
 	ctx             clients.ContainerContext
+	runningPolls    utils.WaitGroupCount
 	inversePollRate float64
-	running         bool
 	lock            sync.Mutex
 	count           int32
+	running         bool
 }
 
 func (gps *GPSCollector) GetRunningPollsWG() *utils.WaitGroupCount {

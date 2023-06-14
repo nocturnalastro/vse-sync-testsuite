@@ -23,10 +23,10 @@ type PTPCollector struct {
 	callback        callbacks.Callback
 	data            map[string]interface{}
 	running         map[string]bool
-	runningPolls    utils.WaitGroupCount
 	DataTypes       [2]string
 	interfaceName   string
 	ctx             clients.ContainerContext
+	runningPolls    utils.WaitGroupCount
 	inversePollRate float64
 	lock            sync.Mutex
 	count           int32
