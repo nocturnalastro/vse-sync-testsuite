@@ -10,7 +10,6 @@ import (
 
 type Collector interface {
 	Start(key string) error   // Setups any internal state required for collection to happen
-	ShouldPoll() bool         // Check if poll time has alapsed and if it should be polled again
 	Poll(chan PollResult)     // Poll for collectables
 	CleanUp(key string) error // Cleans up any internal state
 	GetPollCount() int

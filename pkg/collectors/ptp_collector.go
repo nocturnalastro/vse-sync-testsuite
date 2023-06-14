@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -19,17 +18,15 @@ import (
 )
 
 type PTPCollector struct {
-	lastPoll        time.Time
-	callback        callbacks.Callback
-	data            map[string]interface{}
-	running         map[string]bool
-	DataTypes       [2]string
-	interfaceName   string
-	ctx             clients.ContainerContext
-	runningPolls    utils.WaitGroupCount
-	inversePollRate float64
-	lock            sync.Mutex
-	count           int32
+	callback      callbacks.Callback
+	data          map[string]interface{}
+	running       map[string]bool
+	DataTypes     [2]string
+	interfaceName string
+	ctx           clients.ContainerContext
+	runningPolls  utils.WaitGroupCount
+	lock          sync.Mutex
+	count         int32
 }
 
 const (
@@ -94,16 +91,6 @@ func (ptpDev *PTPCollector) GetPollCount() int {
 	return int(atomic.LoadInt32(&ptpDev.count))
 }
 
-// ShouldPoll checks if enough time has passed since the last poll
-func (ptpDev *PTPCollector) ShouldPoll() bool {
-	ptpDev.lock.Lock()
-	defer ptpDev.lock.Unlock()
-
-	log.Debugf("since: %v", time.Since(ptpDev.lastPoll).Seconds())
-	log.Debugf("wait: %v", ptpDev.inversePollRate)
-	return time.Since(ptpDev.lastPoll).Seconds() >= ptpDev.inversePollRate
-}
-
 // fetchLine will call the requested key's function
 // store the result of that function into the collectors data
 // and returns a json encoded version of that data
@@ -151,10 +138,6 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) { //n
 func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
 	ptpDev.runningPolls.Add(1)
 	defer ptpDev.runningPolls.Done()
-
-	ptpDev.lock.Lock()
-	ptpDev.lastPoll = time.Now()
-	ptpDev.lock.Unlock()
 
 	errorsToReturn := make([]error, 0)
 
@@ -224,18 +207,13 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 		return &PTPCollector{}, errors.New("NIC device is not based on E810")
 	}
 
-	inversePollRate := 1.0 / constuctor.PollRate
-	offset := time.Duration(float64(time.Second.Nanoseconds()) * inversePollRate)
-
 	collector := PTPCollector{
-		interfaceName:   constuctor.PTPInterface,
-		ctx:             ctx,
-		DataTypes:       ptpCollectables,
-		data:            data,
-		running:         running,
-		callback:        constuctor.Callback,
-		inversePollRate: inversePollRate,
-		lastPoll:        time.Now().Add(-offset), // Subtract off a polling time so the first poll hits
+		interfaceName: constuctor.PTPInterface,
+		ctx:           ctx,
+		DataTypes:     ptpCollectables,
+		data:          data,
+		running:       running,
+		callback:      constuctor.Callback,
 	}
 
 	return &collector, nil

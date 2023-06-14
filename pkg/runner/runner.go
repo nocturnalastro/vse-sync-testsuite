@@ -129,16 +129,12 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 			collector.GetRunningPollsWG().Wait()
 			return
 		default:
-			log.Debug("ShouldPoll0:", collector.ShouldPoll())
-
 			if lastPoll.IsZero() || time.Since(lastPoll).Seconds() > inversePollRate {
 				lastPoll = time.Now()
 				log.Debugf("poll %s", collectorName)
 				go collector.Poll(runner.pollResults)
-				log.Debug("ShouldPoll:", collector.ShouldPoll())
 			}
 			time.Sleep(time.Microsecond)
-			log.Debug("ShouldPoll2:", collector.ShouldPoll())
 		}
 	}
 	log.Debugf("Collector finished %s", collectorName)

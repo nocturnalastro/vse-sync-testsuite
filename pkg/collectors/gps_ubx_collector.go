@@ -5,11 +5,7 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"sync/atomic"
-	"time"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
@@ -25,16 +21,13 @@ var (
 )
 
 type GPSCollector struct {
-	lastPoll        time.Time
-	callback        callbacks.Callback
-	DataTypes       [1]string
-	interfaceName   string
-	ctx             clients.ContainerContext
-	runningPolls    utils.WaitGroupCount
-	inversePollRate float64
-	lock            sync.Mutex
-	count           int32
-	running         bool
+	callback      callbacks.Callback
+	DataTypes     [1]string
+	interfaceName string
+	ctx           clients.ContainerContext
+	runningPolls  utils.WaitGroupCount
+	count         int32
+	running       bool
 }
 
 func (gps *GPSCollector) GetRunningPollsWG() *utils.WaitGroupCount {
@@ -57,24 +50,11 @@ func (gps *GPSCollector) GetPollCount() int {
 	return int(atomic.LoadInt32(&gps.count))
 }
 
-// ShouldPoll checks if enough time has passed since the last poll
-func (gps *GPSCollector) ShouldPoll() bool {
-	gps.lock.Lock()
-	defer gps.lock.Unlock()
-	log.Debugf("since: %v", time.Since(gps.lastPoll).Seconds())
-	log.Debugf("wait: %v", gps.inversePollRate)
-	return time.Since(gps.lastPoll).Seconds() >= gps.inversePollRate
-}
-
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
 func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
 	gps.runningPolls.Add(1)
 	defer gps.runningPolls.Done()
-
-	gps.lock.Lock()
-	gps.lastPoll = time.Now()
-	gps.lock.Unlock()
 
 	gpsNav, err := devices.GetGPSNav(gps.ctx)
 
@@ -131,17 +111,12 @@ func (constuctor *CollectionConstuctor) NewGPSCollector() (*GPSCollector, error)
 		return &GPSCollector{}, fmt.Errorf("could not create container context %w", err)
 	}
 
-	inversePollRate := 1.0 / constuctor.PollRate
-	offset := time.Duration(float64(time.Second.Nanoseconds()) * inversePollRate)
-
 	collector := GPSCollector{
-		interfaceName:   constuctor.PTPInterface,
-		ctx:             ctx,
-		DataTypes:       ubxCollectables,
-		running:         false,
-		callback:        constuctor.Callback,
-		inversePollRate: inversePollRate,
-		lastPoll:        time.Now().Add(-offset), // Subtract off a polling time so the first poll hits
+		interfaceName: constuctor.PTPInterface,
+		ctx:           ctx,
+		DataTypes:     ubxCollectables,
+		running:       false,
+		callback:      constuctor.Callback,
 	}
 
 	return &collector, nil
