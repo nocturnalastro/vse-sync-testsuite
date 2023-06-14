@@ -23,6 +23,7 @@ type PTPCollector struct {
 	interfaceName string
 	ctx           clients.ContainerContext
 	count         int32
+	lock          sync.Mutex
 }
 
 const (

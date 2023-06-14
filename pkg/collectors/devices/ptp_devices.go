@@ -5,10 +5,15 @@ package devices
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
+)
+
+var (
+	fetcherMutex sync.Mutex
 )
 
 type PTPDeviceInfo struct {
@@ -54,6 +59,8 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDe
 	// Find the dev for the GNSS for this interface
 	fetcherInst, ok := devFetcher[interfaceName]
 	if !ok {
+		fetcherMutex.Lock()
+		defer fetcherMutex.Unlock()
 		fetcherInst = NewFetcher()
 		devFetcher[interfaceName] = fetcherInst
 
@@ -86,6 +93,7 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDe
 			log.Errorf("failed to add command %s %s", "vendorID", err.Error())
 			return devInfo, fmt.Errorf("failed to fetch devInfo %w", err)
 		}
+
 	}
 
 	err := fetcherInst.Fetch(ctx, &devInfo)
@@ -101,6 +109,8 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDe
 func ReadGNSSDev(ctx clients.ContainerContext, devInfo PTPDeviceInfo, lines, timeoutSeconds int) (GNSSDevLines, error) {
 	fetcherInst, ok := gnssFetcher[devInfo.GNSSDev]
 	if !ok {
+		fetcherMutex.Lock()
+		defer fetcherMutex.Unlock()
 		fetcherInst = NewFetcher()
 		gnssFetcher[devInfo.GNSSDev] = fetcherInst
 
@@ -133,6 +143,8 @@ func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (DevDPLL
 	dpllInfo := DevDPLLInfo{}
 	fetcherInst, ok := dpllFetcher[interfaceName]
 	if !ok {
+		fetcherMutex.Lock()
+		defer fetcherMutex.Unlock()
 		fetcherInst = NewFetcher()
 		dpllFetcher[interfaceName] = fetcherInst
 
@@ -167,6 +179,7 @@ func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (DevDPLL
 			log.Errorf("failed to add command %s %s", "dpll_1_offset", err.Error())
 			return dpllInfo, err
 		}
+		fetcherMutex.Unlock()
 	}
 	err := fetcherInst.Fetch(ctx, &dpllInfo)
 	if err != nil {
