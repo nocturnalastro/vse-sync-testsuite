@@ -3,16 +3,17 @@
 package collectors
 
 import (
+	"sync"
+
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 )
 
 type Collector interface {
-	Start(key string) error   // Setups any internal state required for collection to happen
-	Poll(chan PollResult)     // Poll for collectables
-	CleanUp(key string) error // Cleans up any internal state
+	Start(key string) error                // Setups any internal state required for collection to happen
+	Poll(chan PollResult, *sync.WaitGroup) // Poll for collectables
+	CleanUp(key string) error              // Cleans up any internal state
 	GetPollCount() int
-	Wait()
 }
 
 // A union of all values required to be passed into all constuctions

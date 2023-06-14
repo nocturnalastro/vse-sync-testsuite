@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -118,6 +119,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 
 	var lastPoll time.Time
 	inversePollRate := 1.0 / runner.pollRate
+	var runningPolls sync.WaitGroup
 
 	log.Debug("Poll count1:", collector.GetPollCount())
 	for runner.pollCount < 0 || collector.GetPollCount() < runner.pollCount {
@@ -126,13 +128,14 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 		select {
 		case <-quit:
 			log.Infof("Killed shutting down collector %s", collectorName)
-			collector.Wait()
+			runningPolls.Wait()
 			return
 		default:
 			if lastPoll.IsZero() || time.Since(lastPoll).Seconds() > inversePollRate {
 				lastPoll = time.Now()
 				log.Debugf("poll %s", collectorName)
-				go collector.Poll(runner.pollResults)
+				runningPolls.Add(1)
+				go collector.Poll(runner.pollResults, &runningPolls)
 			}
 			time.Sleep(time.Microsecond)
 		}

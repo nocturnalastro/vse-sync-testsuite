@@ -14,7 +14,6 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors/devices"
-	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
 
 type PTPCollector struct {
@@ -24,7 +23,6 @@ type PTPCollector struct {
 	DataTypes     [2]string
 	interfaceName string
 	ctx           clients.ContainerContext
-	runningPolls  utils.WaitGroupCount
 	lock          sync.Mutex
 	count         int32
 }
@@ -49,10 +47,6 @@ var ptpCollectables = [2]string{
 	DeviceInfo,
 	DPLLInfo,
 	// GNSSDev,
-}
-
-func (ptpDev *PTPCollector) Wait() {
-	ptpDev.runningPolls.Wait()
 }
 
 func (ptpDev *PTPCollector) getNotCollectableError(key string) error {
@@ -135,9 +129,8 @@ func (ptpDev *PTPCollector) fetchLine(key string) (line []byte, err error) { //n
 
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
-func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult) {
-	ptpDev.runningPolls.Add(1)
-	defer ptpDev.runningPolls.Done()
+func (ptpDev *PTPCollector) Poll(resultsChan chan PollResult, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	errorsToReturn := make([]error, 0)
 

@@ -5,12 +5,12 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/collectors/devices"
-	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
 
 var (
@@ -25,13 +25,8 @@ type GPSCollector struct {
 	DataTypes     [1]string
 	interfaceName string
 	ctx           clients.ContainerContext
-	runningPolls  utils.WaitGroupCount
 	count         int32
 	running       bool
-}
-
-func (gps *GPSCollector) Wait() {
-	gps.runningPolls.Wait()
 }
 
 // Start will add the key to the running pieces of data
@@ -52,9 +47,8 @@ func (gps *GPSCollector) GetPollCount() int {
 
 // Poll collects information from the cluster then
 // calls the callback.Call to allow that to persist it
-func (gps *GPSCollector) Poll(resultsChan chan PollResult) {
-	gps.runningPolls.Add(1)
-	defer gps.runningPolls.Done()
+func (gps *GPSCollector) Poll(resultsChan chan PollResult, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	gpsNav, err := devices.GetGPSNav(gps.ctx)
 
