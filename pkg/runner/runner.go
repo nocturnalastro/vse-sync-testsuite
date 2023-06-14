@@ -123,13 +123,14 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 			log.Infof("Killed shutting down collector %s", collectorName)
 			return
 		default:
+			log.Debug("ShouldPoll0:", collector.ShouldPoll())
 			if collector.ShouldPoll() {
 				log.Debugf("poll %s", collectorName)
 				go collector.Poll(runner.pollResults)
+				log.Debug("ShouldPoll:", collector.ShouldPoll())
 			}
-			if !collector.ShouldPoll() {
-				time.Sleep(time.Millisecond)
-			}
+			time.Sleep(time.Microsecond)
+			log.Debug("ShouldPoll2:", collector.ShouldPoll())
 		}
 	}
 	log.Debugf("Collector finished %s", collectorName)
