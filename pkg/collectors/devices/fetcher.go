@@ -97,6 +97,7 @@ func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map
 	command := []string{"/usr/bin/sh"}
 	var buffIn bytes.Buffer
 	buffIn.WriteString(cmd)
+	log.Debug(buffIn.String())
 
 	stdout, _, err := clientset.ExecCommandContainerStdIn(ctx, command, buffIn)
 	if err != nil {
@@ -105,8 +106,11 @@ func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map
 		log.Errorf("command in container failed unexpectedly. error: %v", err)
 		return result, fmt.Errorf("runCommands failed %w", err)
 	}
+	log.Debugf("%s\n%s", cmdGrp.GetCommand(), stdout)
 	result, err = cmdGrp.ExtractResult(stdout)
 	if err != nil {
+		ctx.Timeout = ctx.Timeout * 2
+		log.Infof("increasing timeout to %d", ctx.Timeout)
 		log.Errorf("extraction failed %s", err.Error())
 		log.Errorf("output was %s", stdout)
 		return result, fmt.Errorf("runCommands failed %w", err)

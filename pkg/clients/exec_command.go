@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ type ContainerContext struct {
 	namespace     string
 	podName       string
 	containerName string
+	Timeout       time.Duration
 }
 
 func (clientsholder *Clientset) findPodNameFromPrefix(namespace, prefix string) (string, error) {
@@ -59,6 +61,7 @@ func NewContainerContext(
 		namespace:     namespace,
 		podName:       podName,
 		containerName: containerName,
+		Timeout:       10 * time.Second,
 	}
 	return ctx, nil
 }
@@ -138,6 +141,7 @@ func (clientsholder *Clientset) ExecCommandContainerStdIn(ctx ContainerContext, 
 		strings.Join(commandStr, " "),
 	))
 	req := clientsholder.K8sRestClient.Post().
+		Timeout(ctx.Timeout).
 		Namespace(ctx.GetNamespace()).
 		Resource("pods").
 		Name(ctx.GetPodName()).
@@ -156,13 +160,19 @@ func (clientsholder *Clientset) ExecCommandContainerStdIn(ctx ContainerContext, 
 		log.Error(err)
 		return stdout, stderr, fmt.Errorf("error setting up remote command: %w", err)
 	}
-
+	stdin := buffIn.String()
 	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
 		Stdin:  &buffIn,
 		Stdout: &buffOut,
 		Stderr: &buffErr,
 	})
-	stdin, stdout, stderr := buffIn.String(), buffOut.String(), buffErr.String()
+	stdout, stderr = buffOut.String(), buffErr.String()
+	log.Debug(err)
+	log.Debug(req.URL())
+	log.Debug("command: ", command)
+	log.Debug("stdin: ", stdin)
+	log.Debug("stderr: ", stderr)
+	log.Debug("stdout: ", stdout)
 	if err != nil {
 		log.Error(err)
 		log.Error(req.URL())
