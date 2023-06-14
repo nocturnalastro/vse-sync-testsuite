@@ -62,7 +62,7 @@ type CollectorRunner struct {
 
 func NewCollectorRunner() *CollectorRunner {
 	collectorNames := make([]string, 0)
-	collectorNames = append(collectorNames, collectors.GPSCollectorName) // collectors.PTPCollectorName, collectors.GPSCollectorName)
+	collectorNames = append(collectorNames, collectors.PTPCollectorName, collectors.GPSCollectorName)
 	return &CollectorRunner{
 		collecterInstances:    make(map[string]*collectors.Collector),
 		collectorNames:        collectorNames,
