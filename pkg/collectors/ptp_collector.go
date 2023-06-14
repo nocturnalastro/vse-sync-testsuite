@@ -4,6 +4,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -185,10 +186,10 @@ func (constuctor *CollectionConstuctor) NewPTPCollector() (*PTPCollector, error)
 	}
 	ptpDevInfo, ok := data[DeviceInfo].(devices.PTPDeviceInfo)
 	if !ok {
-		return &PTPCollector{}, fmt.Errorf("DeviceInfo was not able to be unpacked")
+		return &PTPCollector{}, errors.New("DeviceInfo was not able to be unpacked")
 	}
 	if ptpDevInfo.VendorID != VendorIntel || ptpDevInfo.DeviceID != DeviceE810 {
-		return &PTPCollector{}, fmt.Errorf("NIC device is not based on E810")
+		return &PTPCollector{}, errors.New("NIC device is not based on E810")
 	}
 
 	inversePollRate := 1.0 / constuctor.PollRate
