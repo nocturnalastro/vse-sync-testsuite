@@ -20,8 +20,8 @@ type PTPCollector struct {
 	data            map[string]interface{}
 	running         map[string]bool
 	DataTypes       [3]string
-	ctx             clients.ContainerContext
 	interfaceName   string
+	ctx             clients.ContainerContext
 	inversePollRate float64
 }
 

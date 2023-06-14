@@ -128,7 +128,7 @@ func (clientsholder *Clientset) ExecCommandContainer(ctx ContainerContext, comma
 	return stdout, stderr, nil
 }
 
-//nolint:lll // allow slightly long function definition
+//nolint:lll,funlen // allow slightly long function definition
 func (clientsholder *Clientset) ExecCommandContainerStdIn(ctx ContainerContext, command []string, buffIn bytes.Buffer) (stdout, stderr string, err error) {
 	commandStr := command
 	var buffOut bytes.Buffer

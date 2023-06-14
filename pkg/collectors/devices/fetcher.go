@@ -109,7 +109,7 @@ func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map
 	log.Debugf("%s\n%s", cmdGrp.GetCommand(), stdout)
 	result, err = cmdGrp.ExtractResult(stdout)
 	if err != nil {
-		ctx.Timeout = ctx.Timeout * 2
+		ctx.Timeout *= 2
 		log.Infof("increasing timeout to %d", ctx.Timeout)
 		log.Errorf("extraction failed %s", err.Error())
 		log.Errorf("output was %s", stdout)

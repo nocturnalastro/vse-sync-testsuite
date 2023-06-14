@@ -16,8 +16,8 @@ import (
 
 var (
 	GPSCollectorName = "GPS-UBX"
-	gpsNavKey        = "gpsNav"
-	ubxCollectables  = [1]string{gpsNavKey}
+	GPSNavKey        = "gpsNav"
+	ubxCollectables  = [1]string{GPSNavKey}
 	GPSContainer     = "gpsd"
 )
 
@@ -25,9 +25,9 @@ type GPSCollector struct {
 	lastPoll        time.Time
 	callback        callbacks.Callback
 	data            devices.GPSNav
-	ctx             clients.ContainerContext
 	DataTypes       [1]string
 	interfaceName   string
+	ctx             clients.ContainerContext
 	inversePollRate float64
 	running         bool
 }
@@ -36,7 +36,7 @@ type GPSCollector struct {
 // to be collects when polled
 func (gps *GPSCollector) Start(key string) error {
 	switch key {
-	case All, gpsNavKey:
+	case All, GPSNavKey:
 		gps.running = true
 	default:
 		return fmt.Errorf("key %s is not a colletable of %T", key, gps)
@@ -63,7 +63,7 @@ func (gps *GPSCollector) Poll() []error {
 	if err != nil {
 		return []error{err}
 	} else {
-		err = gps.callback.Call(fmt.Sprintf("%T", gps), gpsNavKey, string(line))
+		err = gps.callback.Call(fmt.Sprintf("%T", gps), GPSNavKey, string(line))
 		if err != nil {
 			return []error{err}
 		}
@@ -76,7 +76,7 @@ func (gps *GPSCollector) Poll() []error {
 // CleanUp stops a running collector
 func (gps *GPSCollector) CleanUp(key string) error {
 	switch key {
-	case All, gpsNavKey:
+	case All, GPSNavKey:
 		gps.running = false
 	default:
 		return fmt.Errorf("key %s is not a colletable of %T", key, gps)
