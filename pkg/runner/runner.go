@@ -128,7 +128,7 @@ func (runner *CollectorRunner) poller(collectorName string, collector collectors
 				go collector.Poll(runner.pollResults)
 			}
 			if !collector.ShouldPoll() {
-				time.Sleep(time.Microsecond)
+				time.Sleep(time.Millisecond)
 			}
 		}
 	}
