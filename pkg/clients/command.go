@@ -79,11 +79,11 @@ func (c *Cmd) ExtractResult(s string) (map[string]string, error) {
 }
 
 type CmdGroup struct {
-	cmds []*Cmd
+	cmds map[string]*Cmd
 }
 
 func (cgrp *CmdGroup) AddCommand(c *Cmd) {
-	cgrp.cmds = append(cgrp.cmds, c)
+	cgrp.cmds[c.key] = c
 }
 
 func (cgrp *CmdGroup) GetCommand() string {
@@ -92,6 +92,14 @@ func (cgrp *CmdGroup) GetCommand() string {
 		res += c.GetCommand()
 	}
 	return res
+}
+
+func (cgrp *CmdGroup) GetFilteredCmdGrp(include []string) CmdGroup {
+	grp := CmdGroup{}
+	for _, key := range include {
+		grp.AddCommand(cgrp.cmds[key])
+	}
+	return grp
 }
 
 func (cgrp *CmdGroup) ExtractResult(s string) (map[string]string, error) {

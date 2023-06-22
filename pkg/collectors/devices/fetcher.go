@@ -96,6 +96,14 @@ func (inst *fetcher) Fetch(ctx clients.ContainerContext, pack interface{}) error
 	return nil
 }
 
+func (inst *fetcher) GetFilteredFetcher(include []string) *fetcher {
+	cmdGrp := inst.cmdGrp.GetFilteredCmdGrp(include)
+	return &fetcher{
+		cmdGrp:        &cmdGrp,
+		postProcesser: inst.postProcesser,
+	}
+}
+
 // runCommands executes the commands on the container passed as the ctx
 // and extracts the results from the stdout
 func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map[string]string, err error) { //nolint:lll // allow slightly long function definition
