@@ -80,10 +80,8 @@ func (runner *CollectorRunner) initialise(
 		ErroredPolls:       runner.erroredPolls,
 	}
 
-	registry := collectors.GetRegistry()
-
 	for _, collectorName := range runner.collectorNames {
-		builderFunc, err := registry.GetBuilderFunc(collectorName)
+		builderFunc, err := collectors.CollectorRegistry.GetBuilderFunc(collectorName)
 		if err != nil {
 			log.Error(err)
 			continue

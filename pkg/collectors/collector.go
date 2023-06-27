@@ -3,8 +3,11 @@
 package collectors
 
 import (
+	log "github.com/sirupsen/logrus"
+
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/clients"
+	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/registry"
 	"github.com/redhat-partner-solutions/vse-sync-testsuite/pkg/utils"
 )
 
@@ -31,4 +34,23 @@ type CollectionConstructor struct {
 type PollResult struct {
 	CollectorName string
 	Errors        []error
+}
+
+type builderFunc registry.BuilderFunc[CollectionConstructor, Collector]
+
+var (
+	CollectorRegistry *registry.Registry[builderFunc]
+	registerCollector func(string, builderFunc)
+)
+
+func RegisterCollector(collectorName string, builder builderFunc) {
+	if CollectorRegistry == nil {
+		CollectorRegistry = registry.SetupRegister[builderFunc]()
+	}
+
+	if registerCollector == nil {
+		registerCollector = registry.Register[builderFunc](CollectorRegistry)
+	}
+	registerCollector(collectorName, builder)
+	log.Debugf("Registering %s on %v", collectorName, CollectorRegistry)
 }
