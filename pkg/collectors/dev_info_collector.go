@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -26,12 +25,11 @@ type DevInfoCollector struct {
 	quit          chan os.Signal
 	erroredPolls  chan PollResult
 	requiresFetch chan bool
+	pollInterval  *LockedInterval
 	ctx           clients.ContainerContext
 	interfaceName string
-	count         uint32
-	running       bool
 	wg            sync.WaitGroup
-	pollInterval  int
+	running       bool
 }
 
 const (
@@ -39,8 +37,16 @@ const (
 	DeviceInfo           = "device-info"
 )
 
-func (ptpDev *DevInfoCollector) GetPollInterval() int {
-	return ptpDev.pollInterval
+func (ptpDev *DevInfoCollector) GetPollInterval() time.Duration {
+	return ptpDev.pollInterval.interval()
+}
+
+func (ptpDev *DevInfoCollector) ScalePollInterval(factor float64) {
+	ptpDev.pollInterval.scale(factor)
+}
+
+func (ptpDev *DevInfoCollector) ResetPollInterval() {
+	ptpDev.pollInterval.reset()
 }
 
 func (ptpDev *DevInfoCollector) IsAnnouncer() bool {
@@ -109,7 +115,6 @@ func (ptpDev *DevInfoCollector) poll() error {
 func (ptpDev *DevInfoCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCount) {
 	defer func() {
 		wg.Done()
-		atomic.AddUint32(&ptpDev.count, 1)
 	}()
 	errorsToReturn := make([]error, 0)
 	err := ptpDev.poll()
@@ -128,10 +133,6 @@ func (ptpDev *DevInfoCollector) CleanUp() error {
 	ptpDev.quit <- os.Kill
 	ptpDev.wg.Wait()
 	return nil
-}
-
-func (ptpDev *DevInfoCollector) GetPollCount() int {
-	return int(atomic.LoadUint32(&ptpDev.count))
 }
 
 func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *CollectionConstructor) error {
@@ -197,7 +198,7 @@ func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) 
 		quit:          make(chan os.Signal),
 		erroredPolls:  constructor.ErroredPolls,
 		requiresFetch: make(chan bool, 1),
-		pollInterval:  constructor.DevInfoAnnouceInterval,
+		pollInterval:  NewLockedInterval(constructor.DevInfoAnnouceInterval),
 	}
 
 	return &collector, nil

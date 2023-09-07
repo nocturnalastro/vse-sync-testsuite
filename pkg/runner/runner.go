@@ -143,9 +143,9 @@ func (runner *CollectorRunner) poller(
 ) {
 	defer wg.Done()
 	var lastPoll time.Time
-	pollInterval := time.Duration(collector.GetPollInterval()) * time.Second
+	pollInterval := collector.GetPollInterval()
 	runningPolls := utils.WaitGroupCount{}
-	log.Debugf("Collector with poll interval %f ", pollInterval.Seconds())
+	log.Debugf("Collector with poll interval %fs", pollInterval.Seconds())
 	for runner.shouldKeepPolling(collector) {
 		// If pollResults were to block we do not want to keep spawning polls
 		// so we shouldn't allow too many polls to be running simultaneously

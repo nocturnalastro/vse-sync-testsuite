@@ -4,6 +4,7 @@ package collectors //nolint:dupl // new collector
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
@@ -19,14 +20,22 @@ var (
 
 type GPSCollector struct {
 	callback      callbacks.Callback
+	pollInterval  *LockedInterval
 	ctx           clients.ContainerContext
 	interfaceName string
 	running       bool
-	pollInterval  int
 }
 
-func (gps *GPSCollector) GetPollInterval() int {
-	return gps.pollInterval
+func (gps *GPSCollector) GetPollInterval() time.Duration {
+	return gps.pollInterval.interval()
+}
+
+func (gps *GPSCollector) ScalePollInterval(factor float64) {
+	gps.pollInterval.scale(factor)
+}
+
+func (gps *GPSCollector) ResetPollInterval() {
+	gps.pollInterval.reset()
 }
 
 func (gps *GPSCollector) IsAnnouncer() bool {
@@ -87,7 +96,7 @@ func NewGPSCollector(constructor *CollectionConstructor) (Collector, error) {
 		ctx:           ctx,
 		running:       false,
 		callback:      constructor.Callback,
-		pollInterval:  constructor.PollInterval,
+		pollInterval:  NewLockedInterval(constructor.PollInterval),
 	}
 
 	return &collector, nil

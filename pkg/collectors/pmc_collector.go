@@ -4,6 +4,7 @@ package collectors //nolint:dupl // new collector
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
@@ -19,13 +20,21 @@ const (
 
 type PMCCollector struct {
 	callback     callbacks.Callback
+	pollInterval *LockedInterval
 	ctx          clients.ContainerContext
 	running      bool
-	pollInterval int
 }
 
-func (pmc *PMCCollector) GetPollInterval() int {
-	return pmc.pollInterval
+func (pmc *PMCCollector) GetPollInterval() time.Duration {
+	return pmc.pollInterval.interval()
+}
+
+func (pmc *PMCCollector) ScalePollInterval(factor float64) {
+	pmc.pollInterval.scale(factor)
+}
+
+func (pmc *PMCCollector) ResetPollInterval() {
+	pmc.pollInterval.reset()
 }
 
 func (pmc *PMCCollector) IsAnnouncer() bool {
@@ -85,7 +94,7 @@ func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
 		ctx:          ctx,
 		running:      false,
 		callback:     constructor.Callback,
-		pollInterval: constructor.PollInterval,
+		pollInterval: NewLockedInterval(constructor.PollInterval),
 	}
 
 	return &collector, nil

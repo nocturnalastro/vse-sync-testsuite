@@ -61,10 +61,10 @@ type LogsCollector struct {
 	slices             chan *loglines.LineSlice
 	client             *clients.Clientset
 	sliceQuit          chan os.Signal
+	pollInterval       *LockedInterval
 	logsOutputFileName string
 	lastPoll           loglines.GenerationalLockedTime
 	wg                 sync.WaitGroup
-	pollInterval       int
 	withTimeStamps     bool
 	running            bool
 	pruned             bool
@@ -75,8 +75,16 @@ const (
 	LogsInfo          = "log-line"
 )
 
-func (logs *LogsCollector) GetPollInterval() int {
-	return logs.pollInterval
+func (logs *LogsCollector) GetPollInterval() time.Duration {
+	return logs.pollInterval.interval()
+}
+
+func (logs *LogsCollector) ScalePollInterval(factor float64) {
+	logs.pollInterval.scale(factor)
+}
+
+func (logs *LogsCollector) ResetPollInterval() {
+	logs.pollInterval.reset()
 }
 
 func (logs *LogsCollector) IsAnnouncer() bool {
@@ -277,7 +285,7 @@ func NewLogsCollector(constructor *CollectionConstructor) (Collector, error) {
 		client:             constructor.Clientset,
 		sliceQuit:          make(chan os.Signal),
 		writeQuit:          make(chan os.Signal),
-		pollInterval:       logPollInterval,
+		pollInterval:       NewLockedInterval(logPollInterval),
 		pruned:             true,
 		slices:             make(chan *loglines.LineSlice, lineSliceChanLength),
 		lines:              make(chan *loglines.ProcessedLine, lineChanLength),

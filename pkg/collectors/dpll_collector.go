@@ -5,6 +5,7 @@ package collectors
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
@@ -15,10 +16,10 @@ import (
 
 type DPLLCollector struct {
 	callback      callbacks.Callback
+	pollInterval  *LockedInterval
 	ctx           clients.ContainerContext
 	interfaceName string
 	running       bool
-	pollInterval  int
 }
 
 const (
@@ -26,8 +27,16 @@ const (
 	DPLLInfo          = "dpll-info"
 )
 
-func (dpll *DPLLCollector) GetPollInterval() int {
-	return dpll.pollInterval
+func (dpll *DPLLCollector) GetPollInterval() time.Duration {
+	return dpll.pollInterval.interval()
+}
+
+func (dpll *DPLLCollector) ScalePollInterval(factor float64) {
+	dpll.pollInterval.scale(factor)
+}
+
+func (dpll *DPLLCollector) ResetPollInterval() {
+	dpll.pollInterval.reset()
 }
 
 func (dpll *DPLLCollector) IsAnnouncer() bool {
@@ -93,7 +102,7 @@ func NewDPLLCollector(constructor *CollectionConstructor) (Collector, error) {
 		ctx:           ctx,
 		running:       false,
 		callback:      constructor.Callback,
-		pollInterval:  constructor.PollInterval,
+		pollInterval:  NewLockedInterval(constructor.PollInterval),
 	}
 
 	dpllFSExists, err := devices.IsDPLLFileSystemPresent(collector.ctx, collector.interfaceName)
