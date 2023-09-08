@@ -25,9 +25,9 @@ const (
 	lineChanLength      = 1000
 	lineDelim           = '\n'
 	streamingBufferSize = 2000
-	logPollInterval     = 5
+	logPollInterval     = 2
 	logFilePermissions  = 0666
-	keepGenerations     = 10
+	keepGenerations     = 5
 )
 
 var (
