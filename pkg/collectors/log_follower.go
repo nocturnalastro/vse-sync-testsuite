@@ -296,6 +296,7 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 
 	reference := lineSlices[0].lines
 	dedupedSliceSegments := make([][]*ProcessedLine, 0)
+	dedupedSliceSegments = append(dedupedSliceSegments, lineSlices[0].lines)
 
 	for i, other := range lineSlices[1:] {
 		segment, dedupledOther, err := dedupWithoutCombine(reference, other.lines)
@@ -307,12 +308,13 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 			//   so drop the lines and hope its not too much data
 			continue
 		}
-		dedupedSliceSegments = append(dedupedSliceSegments, segment)
+		dedupedSliceSegments = append(dedupedSliceSegments, dedupledOther)
 		// length of lineSlices[1:] -1
 		if i == len(lineSlices)-2 {
-			dedupedSliceSegments = append(dedupedSliceSegments, dedupledOther)
 		} else {
-			reference = dedupledOther
+			reference = make([]*ProcessedLine, 0, len(segment)+len(dedupledOther))
+			reference = append(reference, segment...)
+			reference = append(reference, dedupledOther...)
 		}
 	}
 
