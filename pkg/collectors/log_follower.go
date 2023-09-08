@@ -150,15 +150,15 @@ func (logs *LogsCollector) writeLine(line *ProcessedLine, writer io.StringWriter
 
 func findOverlap(x, y []*ProcessedLine) int {
 	// Start off by being dumb and just moving first line of the second
-	offset := len(x) - 1
+	position := len(x) - 1
 	checkLine := y[0].Raw
-	for offset >= 0 {
-		if x[offset].Raw == checkLine {
+	for position >= 0 {
+		if x[position].Raw == checkLine {
 			break
 		}
-		offset--
+		position--
 	}
-	return offset
+	return position
 }
 
 func checkOverlap(x, y []*ProcessedLine) bool {
@@ -205,15 +205,16 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 // }
 
 func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
-	offset := findOverlap(reference, other)
-	if offset == -1 {
+	position := findOverlap(reference, other)
+	if position == -1 {
 		return reference, other, nil
 	}
+	offset := len(reference) - position
 
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
-	newOther = append(newOther, other[len(reference)-offset:]...)
+	newOther = append(newOther, other[offset:]...)
 
-	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
+	if checkOverlap(reference[position:], other[:offset]) {
 		return reference, newOther, nil
 	}
 	// TODO: attempt stitching here by dropping the failing line from the check
