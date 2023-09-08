@@ -171,50 +171,98 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 	return true
 }
 
-func writeOverlap(lines []*ProcessedLine) error {
-	fw, err := os.Create(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
-	if err != nil {
-		return fmt.Errorf("failed %w", err)
-	}
-	defer fw.Close()
-	fileNameNumber++
+// func writeOverlap(lines []*ProcessedLine) error {
+// 	fw, err := os.Create(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
+// 	if err != nil {
+// 		return fmt.Errorf("failed %w", err)
+// 	}
+// 	defer fw.Close()
+// 	fileNameNumber++
 
-	for _, line := range lines {
-		fw.WriteString(line.Raw + "\n")
-	}
-	return nil
-}
+// 	for _, line := range lines {
+// 		fw.WriteString(line.Raw + "\n")
+// 	}
+// 	return nil
+// }
 
-func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
-	// err := writeOverlap(reference)
-	// if err != nil {
-	// 	log.Error(err)
-	// }
-	// err = writeOverlap(other)
-	// if err != nil {
-	// 	log.Error(err)
-	// }
+// func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
+// 	// err := writeOverlap(reference)
+// 	// if err != nil {
+// 	// 	log.Error(err)
+// 	// }
+// 	// err = writeOverlap(other)
+// 	// if err != nil {
+// 	// 	log.Error(err)
+// 	// }
 
+// 	newRef, newOther, err := dedupWithoutCombine(reference, other)
+// 	if err != nil {
+// 		return reference, err
+// 	}
+// 	res := make([]*ProcessedLine, len(newRef)+len(newOther))
+// 	res = append(res, newRef...)
+// 	res = append(res, newOther...)
+// 	return res, nil
+// }
+
+func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
 	offset := findOverlap(reference, other)
 	if offset == -1 {
-		res := make([]*ProcessedLine, len(reference)+len(other))
-		res = append(res, reference...)
-		res = append(res, other...)
-		return res, nil
+		return reference, other, nil
 	}
 
+	newOther := make([]*ProcessedLine, 0, len(other)-offset)
+	newOther = append(newOther, other[len(reference)-offset:]...)
+
+	if checkOverlap(reference[offset:], newOther) {
+		return reference, newOther, nil
+	}
 	// TODO: attempt stitching here by dropping the failing line from the check
 	// and keeping it to add in
-	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
-		newRef := make([]*ProcessedLine, 0, len(reference)+len(other)-offset)
-		newRef = append(newRef, reference...)
-		newRef = append(newRef, other[len(reference)-offset:]...)
-		return newRef, nil
-	}
-	return reference, fmt.Errorf("overlapping log slices don't match this suggests missing lines")
+	return reference, newOther, fmt.Errorf("dropping lines: overlapping log slices don't match this suggests missing lines, don't know how to combine.")
 }
 
-func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
+// func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
+// 	// Assuming there a no missing lines and that overlaps are continuus.
+// 	// We can order the slices find the max overlap in the two
+// 	// Then check for an overlap
+// 	// remove the overlap from the second and append the rest
+// 	// then keep taking the next LineSlice
+// 	// until we have stiched them all together
+
+// 	sort.Slice(lineSlices, func(i, j int) bool {
+// 		startDiff := lineSlices[i].start.Sub(lineSlices[j].start)
+// 		if startDiff == 0 {
+// 			endDiff := lineSlices[i].start.Sub(lineSlices[j].start)
+// 			return endDiff > 0
+// 		}
+// 		return startDiff < 0
+// 	})
+
+// 	reference := lineSlices[0].lines
+// 	var err error
+// 	for _, other := range lineSlices[1:] {
+// 		reference, err = processOverlap(reference, other.lines)
+// 		if err != nil {
+// 			log.Error(err)
+// 		}
+// 	}
+// 	return &LineSlice{
+// 		lines: reference,
+// 		start: reference[0].Timestamp,
+// 		end:   reference[len(reference)-1].Timestamp,
+// 	}
+// }
+
+func makeSliceFromLines(lines []*ProcessedLine) *LineSlice {
+	return &LineSlice{
+		lines: lines,
+		start: lines[0].Timestamp,
+		end:   lines[len(lines)-1].Timestamp,
+	}
+}
+
+func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 	// Assuming there a no missing lines and that overlaps are continuus.
 	// We can order the slices find the max overlap in the two
 	// Then check for an overlap
@@ -232,28 +280,57 @@ func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
 	})
 
 	reference := lineSlices[0].lines
-	var err error
-	for _, other := range lineSlices[1:] {
-		reference, err = processOverlap(reference, other.lines)
+	dedupedSliceSegments := make([][]*ProcessedLine, len(lineSlices))
+
+	for i, other := range lineSlices[1:] {
+		reference, dedupledOther, err := dedupWithoutCombine(reference, other.lines)
 		if err != nil {
-			log.Error(err)
+			log.Error("dropling lines in second segment", err)
+			// TODO handle this better:
+			//   If the next segment starts at the same time as other
+			//   then if we combine the dedup then it may cause issues
+			//   so drop the lines and hope its not too much data
+			continue
+		}
+		dedupedSliceSegments[i] = reference
+		// lenght of lineSlices[1:] -1
+		if i == len(lineSlices)-2 {
+			dedupedSliceSegments[i+1] = dedupledOther
+		} else {
+			reference = dedupledOther
 		}
 	}
-	return &LineSlice{
-		lines: reference,
-		start: reference[0].Timestamp,
-		end:   reference[len(reference)-1].Timestamp,
-	}
+
+	return dedupedSliceSegments
 }
 
-func dedup(generationalLineSlices [][]*LineSlice) []*ProcessedLine {
+func combineSliceSegmenets(segments ...[]*ProcessedLine) []*ProcessedLine {
+	newLength := 0
+	for _, s := range segments {
+		newLength += len(s)
+	}
+	result := make([]*ProcessedLine, 0, newLength)
+	for _, s := range segments {
+		result = append(result, s...)
+	}
+
+	return result
+}
+
+func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice) {
 	dedupedGenerations := make([]*LineSlice, len(generationalLineSlices))
 	for i, gen := range generationalLineSlices {
-		dedupedGenerations[i] = dedupLineSlices(gen)
+		dedupedGenerations[i] = makeSliceFromLines(
+			combineSliceSegmenets(
+				dedupLineSlicesWithoutJoining(gen)...,
+			),
+		)
 	}
-	fullyDedup := dedupLineSlices(dedupedGenerations)
-	log.Info("logs: dedup length ", len(fullyDedup.lines))
-	return fullyDedup.lines
+	fullyDedup := dedupLineSlicesWithoutJoining(dedupedGenerations)
+
+	writeLines := combineSliceSegmenets(fullyDedup[:len(fullyDedup)-1]...)
+	log.Info("logs: dedupled lines", len(writeLines))
+	return writeLines, makeSliceFromLines(fullyDedup[len(fullyDedup)-1])
 }
 
 func (logs *LogsCollector) flushGenerations(generations []uint32) {
@@ -262,8 +339,15 @@ func (logs *LogsCollector) flushGenerations(generations []uint32) {
 	for i, gen := range generations {
 		generationalLineSlices[i] = logs.generations[gen]
 	}
-	for _, line := range dedup(generationalLineSlices) {
+
+	writeLines, lastGen := dedup(generationalLineSlices)
+	for _, line := range writeLines {
 		logs.lines <- line
+	}
+
+	logs.generations[generations[len(generations)-1]] = []*LineSlice{lastGen}
+	for i := 0; i < len(generations)-1; i++ {
+		delete(logs.generations, generations[i])
 	}
 }
 
@@ -295,6 +379,7 @@ func (logs *LogsCollector) processSlices() {
 		case lineSlice := <-logs.lineSlices:
 			if seenGeneration < lineSlice.generation {
 				seenGeneration = lineSlice.generation
+				tryFlush = true
 			}
 			logs.consumeLineSlice(lineSlice)
 		default:
