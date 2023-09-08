@@ -96,6 +96,7 @@ type LogsCollector struct {
 	lines              chan *ProcessedLine
 	lineSlices         chan *LineSlice
 	generations        map[uint32][]*LineSlice
+	oldestGen          uint32
 	client             *clients.Clientset
 	logsOutputFileName string
 	lastPoll           GenerationalLockedTime
@@ -105,8 +106,6 @@ type LogsCollector struct {
 	running            bool
 	pruned             bool
 }
-
-var fileNameNumber int
 
 const (
 	LogsCollectorName = "Logs"
@@ -219,7 +218,7 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 	}
 	// TODO: attempt stitching here by dropping the failing line from the check
 	// and keeping it to add in
-	return reference, newOther, fmt.Errorf("dropping lines: overlapping log slices don't match this suggests missing lines, don't know how to combine.")
+	return reference, newOther, fmt.Errorf("dropping lines: overlapping log slices don't match this suggests missing lines, don't know how to combine")
 }
 
 // func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
@@ -283,7 +282,7 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 	dedupedSliceSegments := make([][]*ProcessedLine, len(lineSlices))
 
 	for i, other := range lineSlices[1:] {
-		reference, dedupledOther, err := dedupWithoutCombine(reference, other.lines)
+		segment, dedupledOther, err := dedupWithoutCombine(reference, other.lines)
 		if err != nil {
 			log.Error("dropling lines in second segment", err)
 			// TODO handle this better:
@@ -292,8 +291,8 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 			//   so drop the lines and hope its not too much data
 			continue
 		}
-		dedupedSliceSegments[i] = reference
-		// lenght of lineSlices[1:] -1
+		dedupedSliceSegments[i] = segment
+		// length of lineSlices[1:] -1
 		if i == len(lineSlices)-2 {
 			dedupedSliceSegments[i+1] = dedupledOther
 		} else {
@@ -345,7 +344,8 @@ func (logs *LogsCollector) flushGenerations(generations []uint32) {
 		logs.lines <- line
 	}
 
-	logs.generations[generations[len(generations)-1]] = []*LineSlice{lastGen}
+	logs.oldestGen = generations[len(generations)-1]
+	logs.generations[logs.oldestGen] = []*LineSlice{lastGen}
 	for i := 0; i < len(generations)-1; i++ {
 		delete(logs.generations, generations[i])
 	}
@@ -384,12 +384,10 @@ func (logs *LogsCollector) processSlices() {
 			logs.consumeLineSlice(lineSlice)
 		default:
 			if tryFlush {
-				if seenGeneration > keepGenerations {
+				if seenGeneration-logs.oldestGen > keepGenerations {
 					gensToFlush := make([]uint32, keepGenerations)
-					var i uint32 = 0
-					for i < keepGenerations {
-						gensToFlush[i] = seenGeneration + i
-						i++
+					for i := 0; i < keepGenerations; i++ {
+						gensToFlush[i] = logs.oldestGen + uint32(i)
 					}
 					logs.flushGenerations(gensToFlush)
 				}
