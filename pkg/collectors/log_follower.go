@@ -252,10 +252,12 @@ func dedup(generationalLineSlices [][]*LineSlice) []*ProcessedLine {
 		dedupedGenerations[i] = dedupLineSlices(gen)
 	}
 	fullyDedup := dedupLineSlices(dedupedGenerations)
+	log.Info("logs: dedup length ", len(fullyDedup.lines))
 	return fullyDedup.lines
 }
 
 func (logs *LogsCollector) flushGenerations(generations []uint32) {
+	log.Info("logs: Flushing Generations ", generations)
 	generationalLineSlices := make([][]*LineSlice, len(generations))
 	for i, gen := range generations {
 		generationalLineSlices[i] = logs.generations[gen]
@@ -425,7 +427,7 @@ func processStream(logs *LogsCollector, stream io.ReadCloser, sinceTime time.Dur
 		}
 	}
 
-	log.Debug("logs: Finish stream")
+	log.Info("logs: Finish stream")
 
 	if firstTimestamp.IsZero() || lastTimestamp.IsZero() {
 		return fmt.Errorf("zero timestamp after processing lines first(%v) or last (%s)", firstTimestamp, lastTimestamp)
