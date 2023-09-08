@@ -320,11 +320,14 @@ func combineSliceSegmenets(segments ...[]*ProcessedLine) []*ProcessedLine {
 func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice) {
 	dedupedGenerations := make([]*LineSlice, len(generationalLineSlices))
 	for i, gen := range generationalLineSlices {
-		dedupedGenerations[i] = makeSliceFromLines(
-			combineSliceSegmenets(
-				dedupLineSlicesWithoutJoining(gen)...,
-			),
-		)
+		x := dedupLineSlicesWithoutJoining(gen)
+		log.Info(" ")
+		log.Info("Slices: ", x)
+		y := combineSliceSegmenets(x...)
+		log.Info(" ")
+		log.Info("Combined: ", x)
+		log.Info(" ")
+		dedupedGenerations[i] = makeSliceFromLines(y)
 	}
 	fullyDedup := dedupLineSlicesWithoutJoining(dedupedGenerations)
 
