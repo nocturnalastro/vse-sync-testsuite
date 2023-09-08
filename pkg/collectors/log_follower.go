@@ -172,8 +172,8 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 	return true
 }
 
-func writeOverlap(lines []*ProcessedLine) error {
-	fw, err := os.Create(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
+func writeOverlap(lines []*ProcessedLine, name string) error {
+	fw, err := os.Create(name)
 	if err != nil {
 		return fmt.Errorf("failed %w", err)
 	}
@@ -272,7 +272,7 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 	// until we have stiched them all together
 
 	for _, ls := range lineSlices {
-		err := writeOverlap(ls.lines)
+		err := writeOverlap(ls.lines, fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
 		if err != nil {
 			log.Error(err)
 		}
@@ -358,6 +358,16 @@ func (logs *LogsCollector) flushGenerations(generations []uint32) {
 	}
 
 	writeLines, lastGen := dedup(generationalLineSlices)
+
+	genlis := ""
+	for i, genIndex := range generations {
+		if i < len(generations)-1 {
+			genlis += fmt.Sprintf("-%d", genIndex)
+		}
+	}
+	err := writeOverlap(writeLines, fmt.Sprintf("Generations%s.log", genlis))
+	log.Debug(err)
+
 	for _, line := range writeLines {
 		logs.lines <- line
 	}
