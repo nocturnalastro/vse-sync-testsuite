@@ -270,6 +270,10 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 	// then keep taking the next LineSlice
 	// until we have stiched them all together
 
+	if len(lineSlices) == 1 {
+		return [][]*ProcessedLine{lineSlices[0].lines}
+	}
+
 	sort.Slice(lineSlices, func(i, j int) bool {
 		startDiff := lineSlices[i].start.Sub(lineSlices[j].start)
 		if startDiff == 0 {
