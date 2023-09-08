@@ -107,6 +107,8 @@ type LogsCollector struct {
 	pruned             bool
 }
 
+var fileNameNumber int
+
 const (
 	LogsCollectorName = "Logs"
 	LogsInfo          = "log-line"
@@ -170,19 +172,19 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 	return true
 }
 
-// func writeOverlap(lines []*ProcessedLine) error {
-// 	fw, err := os.Create(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
-// 	if err != nil {
-// 		return fmt.Errorf("failed %w", err)
-// 	}
-// 	defer fw.Close()
-// 	fileNameNumber++
+func writeOverlap(lines []*ProcessedLine) error {
+	fw, err := os.Create(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
+	if err != nil {
+		return fmt.Errorf("failed %w", err)
+	}
+	defer fw.Close()
+	fileNameNumber++
 
-// 	for _, line := range lines {
-// 		fw.WriteString(line.Raw + "\n")
-// 	}
-// 	return nil
-// }
+	for _, line := range lines {
+		fw.WriteString(line.Raw + "\n")
+	}
+	return nil
+}
 
 // func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
 // 	// err := writeOverlap(reference)
@@ -210,7 +212,6 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 		return reference, other, nil
 	}
 	offset := len(reference) - position
-	log.Info("dedup numbers", len(reference), len(other), offset, len(other)-offset)
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
 	newOther = append(newOther, other[offset:]...)
 
@@ -270,6 +271,13 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 	// then keep taking the next LineSlice
 	// until we have stiched them all together
 
+	for _, ls := range lineSlices {
+		err := writeOverlap(ls.lines)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
 	if len(lineSlices) == 1 {
 		return [][]*ProcessedLine{lineSlices[0].lines}
 	}
@@ -324,14 +332,11 @@ func combineSliceSegmenets(segments ...[]*ProcessedLine) []*ProcessedLine {
 func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice) {
 	dedupedGenerations := make([]*LineSlice, len(generationalLineSlices))
 	for i, gen := range generationalLineSlices {
-		x := dedupLineSlicesWithoutJoining(gen)
-		log.Info(" ")
-		log.Info("Slices: ", x)
-		y := combineSliceSegmenets(x...)
-		log.Info(" ")
-		log.Info("Combined: ", x)
-		log.Info(" ")
-		dedupedGenerations[i] = makeSliceFromLines(y)
+		dedupedGenerations[i] = makeSliceFromLines(
+			combineSliceSegmenets(
+				dedupLineSlicesWithoutJoining(gen)...,
+			),
+		)
 	}
 	fullyDedup := dedupLineSlicesWithoutJoining(dedupedGenerations)
 
