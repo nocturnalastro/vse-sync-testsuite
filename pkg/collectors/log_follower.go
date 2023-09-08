@@ -275,7 +275,7 @@ func (logs *LogsCollector) processSlices() {
 				logs.consumeLineSlice(lineSlice)
 			}
 
-			gensToFlush := make([]uint32, keepGenerations)
+			gensToFlush := make([]uint32, len(logs.generations))
 			i := 0
 			for g := range logs.generations {
 				gensToFlush[i] = g
@@ -357,7 +357,7 @@ func (logs *LogsCollector) processLines(line string, lineSlice *LineSlice) (stri
 	var lastTimestamp time.Time
 	if strings.ContainsRune(line, lineDelim) {
 		lines := strings.Split(line, "\n")
-		for index := 0; index < len(lines)-2; index++ {
+		for index := 0; index < len(lines)-1; index++ {
 			log.Debug("logs: lines: ", lines[index])
 			processed, err := processLine(lines[index])
 			if err != nil {
