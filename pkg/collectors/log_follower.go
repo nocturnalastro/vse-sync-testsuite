@@ -209,6 +209,7 @@ func writeOverlap(lines []*ProcessedLine, name string) error {
 func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
 	position := findOverlap(reference, other)
 	if position == -1 {
+		log.Info("No overlap apparantly", fileNameNumber-2, fileNameNumber-1)
 		return reference, other, nil
 	}
 	offset := len(reference) - position
@@ -395,7 +396,6 @@ func (logs *LogsCollector) processSlices() {
 				lineSlice := <-logs.lineSlices
 				logs.consumeLineSlice(lineSlice)
 			}
-
 			gensToFlush := make([]uint32, len(logs.generations))
 			i := 0
 			for g := range logs.generations {
@@ -403,6 +403,11 @@ func (logs *LogsCollector) processSlices() {
 				i++
 			}
 			logs.flushGenerations(gensToFlush)
+			gen := logs.generations[logs.oldestGen]
+			// gen should have been dedupled by the flush so print it out.
+			for _, line := range gen[0].lines {
+				logs.lines <- line
+			}
 
 			logs.writeQuit <- sig
 			return
