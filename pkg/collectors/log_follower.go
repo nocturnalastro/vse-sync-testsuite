@@ -106,6 +106,8 @@ type LogsCollector struct {
 	pruned             bool
 }
 
+var fileNameNumber int
+
 const (
 	LogsCollectorName = "Logs"
 	LogsInfo          = "log-line"
@@ -169,10 +171,33 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 	return true
 }
 
+func writeOverlap(lines []*ProcessedLine) error {
+	fw, err := os.Open(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
+	if err != nil {
+		return fmt.Errorf("failed %w", err)
+	}
+	defer fw.Close()
+	fileNameNumber++
+
+	for _, line := range lines {
+		fw.WriteString(line.Raw + "\n")
+	}
+	return nil
+}
+
 func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
+	err := writeOverlap(reference)
+	if err != nil {
+		log.Error(err)
+	}
+	err = writeOverlap(other)
+	if err != nil {
+		log.Error(err)
+	}
+
 	offset := findOverlap(reference, other)
 	if offset == -1 {
-		return reference, fmt.Errorf("no overlap found")
+		return reference, fmt.Errorf("no overlap found %d %d", fileNameNumber-2, fileNameNumber-1)
 	}
 	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
 		newRef := make([]*ProcessedLine, 0, len(reference)+len(other)-offset)
