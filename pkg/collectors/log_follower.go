@@ -213,7 +213,7 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
 	newOther = append(newOther, other[len(reference)-offset:]...)
 
-	if checkOverlap(reference[offset:], newOther) {
+	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
 		return reference, newOther, nil
 	}
 	// TODO: attempt stitching here by dropping the failing line from the check
