@@ -214,7 +214,7 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 	offset := len(reference) - position
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
 	newOther = append(newOther, other[offset:]...)
-
+	log.Info("sizes ", len(reference), position, len(other), offset, len(other)-offset)
 	if checkOverlap(reference[position:], other[:offset]) {
 		return reference, newOther, nil
 	}
