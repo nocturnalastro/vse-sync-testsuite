@@ -319,7 +319,6 @@ func combineSliceSegmenets(segments ...[]*ProcessedLine) []*ProcessedLine {
 
 func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice) {
 	dedupedGenerations := make([]*LineSlice, len(generationalLineSlices))
-	log
 	for i, gen := range generationalLineSlices {
 		x := dedupLineSlicesWithoutJoining(gen)
 		log.Info(" ")
