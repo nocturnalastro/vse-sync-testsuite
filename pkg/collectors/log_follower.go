@@ -172,7 +172,10 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
 	offset := findOverlap(reference, other)
 	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
-		return append(reference, other[len(reference)-offset:]...), nil
+		newRef := make([]*ProcessedLine, 0, len(reference)+len(other)-offset)
+		newRef = append(newRef, reference...)
+		newRef = append(newRef, other[len(reference)-offset:]...)
+		return newRef, nil
 	}
 	return reference, fmt.Errorf("no overlap found")
 }
