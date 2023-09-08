@@ -171,6 +171,9 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 
 func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
 	offset := findOverlap(reference, other)
+	if offset == -1 {
+		return reference, fmt.Errorf("no overlap found")
+	}
 	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
 		newRef := make([]*ProcessedLine, 0, len(reference)+len(other)-offset)
 		newRef = append(newRef, reference...)
@@ -203,7 +206,7 @@ func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
 		reference, err = processOverlap(reference, other.lines)
 		if err != nil {
 			// todo handle no-overlap
-			continue
+			log.Warn(err)
 		}
 	}
 	return &LineSlice{
