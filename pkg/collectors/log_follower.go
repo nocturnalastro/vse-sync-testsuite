@@ -210,7 +210,7 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 		return reference, other, nil
 	}
 	offset := len(reference) - position
-
+	log.Info("dedup numbers", len(reference), len(other), offset, len(other)-offset)
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
 	newOther = append(newOther, other[offset:]...)
 
