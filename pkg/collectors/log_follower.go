@@ -172,7 +172,7 @@ func checkOverlap(x, y []*ProcessedLine) bool {
 }
 
 func writeOverlap(lines []*ProcessedLine) error {
-	fw, err := os.Open(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
+	fw, err := os.Create(fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
 	if err != nil {
 		return fmt.Errorf("failed %w", err)
 	}
