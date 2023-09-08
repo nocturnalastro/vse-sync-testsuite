@@ -271,6 +271,8 @@ func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
 	// then keep taking the next LineSlice
 	// until we have stiched them all together
 
+	log.Info("LS: ", lineSlices)
+
 	for _, ls := range lineSlices {
 		err := writeOverlap(ls.lines, fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
 		if err != nil {
