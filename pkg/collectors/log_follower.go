@@ -345,6 +345,7 @@ func (logs *LogsCollector) flushGenerations(generations []uint32) {
 			log.Error("Go gen at this index", genIndex, logs.generations)
 		}
 		generationalLineSlices[i] = gen
+		log.Info("Gen ", genIndex, gen)
 	}
 
 	writeLines, lastGen := dedup(generationalLineSlices)
