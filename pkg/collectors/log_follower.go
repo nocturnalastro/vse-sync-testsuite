@@ -186,26 +186,32 @@ func writeOverlap(lines []*ProcessedLine) error {
 }
 
 func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
-	err := writeOverlap(reference)
-	if err != nil {
-		log.Error(err)
-	}
-	err = writeOverlap(other)
-	if err != nil {
-		log.Error(err)
-	}
+	// err := writeOverlap(reference)
+	// if err != nil {
+	// 	log.Error(err)
+	// }
+	// err = writeOverlap(other)
+	// if err != nil {
+	// 	log.Error(err)
+	// }
 
 	offset := findOverlap(reference, other)
 	if offset == -1 {
-		return reference, fmt.Errorf("no overlap found %d %d", fileNameNumber-2, fileNameNumber-1)
+		res := make([]*ProcessedLine, len(reference)+len(other))
+		res = append(res, reference...)
+		res = append(res, other...)
+		return res, nil
 	}
+
+	// TODO: attempt stitching here by dropping the failing line from the check
+	// and keeping it to add in
 	if checkOverlap(reference[offset:], other[:len(reference)-offset]) {
 		newRef := make([]*ProcessedLine, 0, len(reference)+len(other)-offset)
 		newRef = append(newRef, reference...)
 		newRef = append(newRef, other[len(reference)-offset:]...)
 		return newRef, nil
 	}
-	return reference, fmt.Errorf("no overlap found")
+	return reference, fmt.Errorf("overlapping log slices don't match this suggests missing lines")
 }
 
 func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
@@ -230,8 +236,7 @@ func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
 	for _, other := range lineSlices[1:] {
 		reference, err = processOverlap(reference, other.lines)
 		if err != nil {
-			// todo handle no-overlap
-			log.Warn(err)
+			log.Error(err)
 		}
 	}
 	return &LineSlice{
