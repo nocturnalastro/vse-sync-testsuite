@@ -319,6 +319,7 @@ func combineSliceSegmenets(segments ...[]*ProcessedLine) []*ProcessedLine {
 
 func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice) {
 	dedupedGenerations := make([]*LineSlice, len(generationalLineSlices))
+	log
 	for i, gen := range generationalLineSlices {
 		x := dedupLineSlicesWithoutJoining(gen)
 		log.Info(" ")
@@ -339,8 +340,12 @@ func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice)
 func (logs *LogsCollector) flushGenerations(generations []uint32) {
 	log.Info("logs: Flushing Generations ", generations)
 	generationalLineSlices := make([][]*LineSlice, len(generations))
-	for i, gen := range generations {
-		generationalLineSlices[i] = logs.generations[gen]
+	for i, genIndex := range generations {
+		gen, ok := logs.generations[genIndex]
+		if !ok {
+			log.Error("Go gen at this index", genIndex, logs.generations)
+		}
+		generationalLineSlices[i] = gen
 	}
 
 	writeLines, lastGen := dedup(generationalLineSlices)
