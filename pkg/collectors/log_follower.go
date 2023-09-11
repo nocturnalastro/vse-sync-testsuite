@@ -30,6 +30,9 @@ const (
 	keepGenerations     = 5
 )
 
+var fileNameNumber int
+var overlapFile int
+
 var (
 	followDuration = logPollInterval * time.Second
 	followTimeout  = 30 * followDuration
@@ -106,8 +109,6 @@ type LogsCollector struct {
 	running            bool
 	pruned             bool
 }
-
-var fileNameNumber int
 
 const (
 	LogsCollectorName = "Logs"
@@ -208,6 +209,12 @@ func writeOverlap(lines []*ProcessedLine, name string) error {
 
 func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
 	position := findOverlap(reference, other)
+	err := writeOverlap(reference, fmt.Sprintf("dedupCheckReference%d.log", overlapFile))
+	log.Error(err)
+	err = writeOverlap(reference, fmt.Sprintf("dedupCheckOther%d.log", overlapFile))
+	log.Error(err)
+	overlapFile++
+
 	if position == -1 {
 		log.Info("No overlap apparently", fileNameNumber-2, fileNameNumber-1)
 		return reference, other, nil
@@ -217,6 +224,8 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 
 	if offset >= len(other) {
 		// We we are stiching things this should be handled but for now just return reference and an empty other
+		log.Info("No new lines in other ", overlapFile)
+
 		return reference, []*ProcessedLine{}, nil
 	}
 
