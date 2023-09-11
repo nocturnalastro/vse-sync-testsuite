@@ -90,7 +90,6 @@ func (gens *Generations) Add(ls *LineSlice) {
 	genSlice, ok := gens.store[ls.generation]
 	if !ok {
 		genSlice = make([]*LineSlice, 0)
-
 	}
 	genSlice = append(genSlice, ls)
 	gens.store[ls.generation] = genSlice
@@ -132,7 +131,6 @@ func (gens *Generations) Flush() *LineSlice {
 	gens.removeOlderThan(lastSlice.generation)
 	gens.store[lastSlice.generation] = []*LineSlice{lastSlice}
 	return result
-
 }
 
 func (gens *Generations) FlushAll() *LineSlice {
@@ -211,8 +209,8 @@ func dedup(lineSlices []*LineSlice) (*LineSlice, *LineSlice) {
 	lastLineSlice := lineSlices[len(lineSlices)-1]
 	lastButOneLineSlice := lineSlices[len(lineSlices)-2]
 
-	// work backwards throught the slices
-	// dedupling the ealier one along the way
+	// work backwards thought the slices
+	// dedupling the earlier one along the way
 	b, lastLines := dedupAB(lastButOneLineSlice.lines, lastLineSlice.lines)
 	resLines := b
 	reference := makeNewCombinedSlice(b, lastLines)
