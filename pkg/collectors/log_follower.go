@@ -216,8 +216,8 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 	log.Info("sizes ", len(reference), position, len(other), offset, len(other)-offset)
 
 	if offset >= len(other) {
-		log.Info("adjusted sizes ", len(reference), position, len(other), offset, len(other)-offset)
-		offset = len(other)
+		// We we are stiching things this should be handled but for now just return reference and an empty other
+		return reference, []*ProcessedLine{}, nil
 	}
 
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
