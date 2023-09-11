@@ -3,6 +3,7 @@
 package collectors
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -78,6 +79,152 @@ type LineSlice struct {
 	generation uint32
 }
 
+type Generations struct {
+	store     map[uint32][]*LineSlice
+	latest    uint32
+	oldest    uint32
+	reference *LineSlice
+}
+
+func (gens *Generations) Add(ls *LineSlice) {
+	genSlice, ok := gens.store[ls.generation]
+	if !ok {
+		genSlice = make([]*LineSlice, 0)
+
+	}
+	genSlice = append(genSlice, ls)
+	gens.store[ls.generation] = genSlice
+
+	log.Info("all generations: ", gens.store)
+
+	if gens.latest < ls.generation {
+		gens.latest = ls.generation
+		log.Info("Logs: lastest updated", gens.latest)
+		log.Info("Logs: should flush", gens.ShouldFlush())
+	}
+}
+
+func (gens *Generations) removeOlderThan(keepGen uint32) {
+	for g := range gens.store {
+		if g < keepGen {
+			delete(gens.store, g)
+		}
+	}
+	gens.oldest = keepGen
+}
+
+func (gens *Generations) ShouldFlush() bool {
+	return (gens.latest-gens.oldest > keepGenerations &&
+		len(gens.store) > keepGenerations)
+}
+
+func (gens *Generations) Flush() *LineSlice {
+	lastGen := gens.oldest + keepGenerations
+	log.Info("Flushing generations <=", lastGen)
+
+	gensToFlush := make([][]*LineSlice, 0)
+	for index, value := range gens.store {
+		if index <= lastGen {
+			gensToFlush = append(gensToFlush, value)
+		}
+	}
+	result, lastSlice := gens.flush(gensToFlush)
+	gens.removeOlderThan(lastSlice.generation)
+	gens.store[lastSlice.generation] = []*LineSlice{lastSlice}
+	return result
+
+}
+
+func (gens *Generations) FlushAll() *LineSlice {
+	log.Info("Flushing all generations")
+	gensToFlush := make([][]*LineSlice, 0)
+	for _, value := range gens.store {
+		gensToFlush = append(gensToFlush, value)
+	}
+	result, lastSlice := gens.flush(gensToFlush)
+	return makeSliceFromLines(makeNewCombinedSlice(result.lines, lastSlice.lines), lastSlice.generation)
+}
+
+func (gens *Generations) flush(generations [][]*LineSlice) (*LineSlice, *LineSlice) {
+	log.Info("genrations: ", generations)
+	sort.Slice(generations, func(i, j int) bool {
+		return generations[i][0].generation < generations[j][0].generation
+	})
+	dedupGen := make([]*LineSlice, len(generations))
+	for index, gen := range generations {
+		dedupGen[index] = dedupGeneration(gen)
+	}
+	return dedup(dedupGen)
+}
+
+func dedupGeneration(lineSlices []*LineSlice) *LineSlice {
+	ls1, ls2 := dedup(lineSlices)
+	return makeSliceFromLines(makeNewCombinedSlice(ls1.lines, ls2.lines), ls1.generation)
+}
+
+// findLineIndex will find the index of a line in a slice of lines
+// and will return -1 if it is not found
+func findLineIndex(list []*ProcessedLine, needle *ProcessedLine) int {
+	checkLine := strings.TrimRightFunc(needle.Raw, unicode.IsSpace)
+	for i, hay := range list {
+		if strings.TrimRightFunc(hay.Raw, unicode.IsSpace) == checkLine {
+			return i
+		}
+	}
+	return -1
+}
+
+func dedupAB(a, b []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine) {
+	firstLineIndex := findLineIndex(a, b[0])
+	log.Info("line index: ", firstLineIndex)
+	if firstLineIndex == -1 {
+		log.Error("FUCK")
+	}
+
+	for i, line := range a[firstLineIndex:] {
+		if strings.TrimRightFunc(line.Raw, unicode.IsSpace) != strings.TrimRightFunc(b[i].Raw, unicode.IsSpace) {
+			log.Error("FUCK line match")
+			fmt.Println(strings.TrimRightFunc(line.Raw, unicode.IsSpace))
+			fmt.Println(strings.TrimRightFunc(b[i].Raw, unicode.IsSpace))
+			fmt.Println(strings.TrimRightFunc(b[i+1].Raw, unicode.IsSpace))
+			os.Exit(-1)
+		}
+	}
+
+	return a[:firstLineIndex], b
+}
+
+func makeNewCombinedSlice(x, y []*ProcessedLine) []*ProcessedLine {
+	r := make([]*ProcessedLine, 0, len(x)+len(y))
+	r = append(r, x...)
+	r = append(r, y...)
+	return r
+}
+
+func dedup(lineSlices []*LineSlice) (*LineSlice, *LineSlice) {
+	if len(lineSlices) == 1 {
+		return &LineSlice{}, lineSlices[0]
+	} else if len(lineSlices) == 2 {
+		return lineSlices[0], lineSlices[1]
+	}
+
+	lastLineSlice := lineSlices[len(lineSlices)-1]
+	lastButOneLineSlice := lineSlices[len(lineSlices)-2]
+
+	// work backwards throught the slices
+	// dedupling the ealier one along the way
+	b, lastLines := dedupAB(lastButOneLineSlice.lines, lastLineSlice.lines)
+	resLines := b
+	reference := makeNewCombinedSlice(b, lastLines)
+
+	for index := len(lineSlices) - 3; index >= 0; index-- {
+		aLines, bLines := dedupAB(lineSlices[index].lines, reference)
+		resLines = makeNewCombinedSlice(aLines, resLines)
+		reference = makeNewCombinedSlice(aLines, bLines)
+	}
+	return makeSliceFromLines(resLines, lastButOneLineSlice.generation), makeSliceFromLines(lastLines, lastLineSlice.generation)
+}
+
 // LogsCollector collects logs from repeated calls to the kubeapi with overlapping query times,
 // the lines are then fed into a channel, in another gorotine they are de-duplicated and written to an output file.
 //
@@ -99,7 +246,6 @@ type LogsCollector struct {
 	writeQuit          chan os.Signal
 	lines              chan *ProcessedLine
 	lineSlices         chan *LineSlice
-	generations        map[uint32][]*LineSlice
 	oldestGen          uint32
 	client             *clients.Clientset
 	logsOutputFileName string
@@ -136,10 +282,6 @@ func (logs *LogsCollector) Start() error {
 	return nil
 }
 
-func (logs *LogsCollector) consumeLineSlice(lineSlice *LineSlice) {
-	logs.generations[lineSlice.generation] = append(logs.generations[lineSlice.generation], lineSlice)
-}
-
 func (logs *LogsCollector) writeLine(line *ProcessedLine, writer io.StringWriter) {
 	var err error
 	if logs.withTimeStamps {
@@ -150,39 +292,6 @@ func (logs *LogsCollector) writeLine(line *ProcessedLine, writer io.StringWriter
 	if err != nil {
 		log.Error(fmt.Errorf("failed to write log output to file"))
 	}
-}
-
-func findOverlap(x, y []*ProcessedLine, comparisonIndex int) int {
-	// Start off by being dumb and just moving first line of the second
-	position := len(x) - 1
-	checkLine := strings.TrimRightFunc(y[comparisonIndex].Raw, unicode.IsSpace)
-
-	for position >= 0 {
-		if strings.TrimRightFunc(x[position].Raw, unicode.IsSpace) == checkLine {
-			break
-		}
-		position--
-	}
-	return position
-}
-
-func findOverlapFromStart(reference, other []*ProcessedLine) (int, int) {
-	position := findOverlap(reference, other, 0)
-	return position, len(reference) - position
-}
-
-func findOverlapFromEnd(reference, other []*ProcessedLine) (int, int) {
-	offset := findOverlap(other, reference, len(reference)-1)
-	return len(reference) - offset, offset
-}
-
-func checkOverlap(x, y []*ProcessedLine) bool {
-	for i, line := range x {
-		if line.Raw != y[i].Raw {
-			return false
-		}
-	}
-	return true
 }
 
 func writeOverlap(lines []*ProcessedLine, name string) error {
@@ -199,234 +308,12 @@ func writeOverlap(lines []*ProcessedLine, name string) error {
 	return nil
 }
 
-// func processOverlap(reference, other []*ProcessedLine) ([]*ProcessedLine, error) {
-// 	// err := writeOverlap(reference)
-// 	// if err != nil {
-// 	// 	log.Error(err)
-// 	// }
-// 	// err = writeOverlap(other)
-// 	// if err != nil {
-// 	// 	log.Error(err)
-// 	// }
-
-// 	newRef, newOther, err := dedupWithoutCombine(reference, other)
-// 	if err != nil {
-// 		return reference, err
-// 	}
-// 	res := make([]*ProcessedLine, len(newRef)+len(newOther))
-// 	res = append(res, newRef...)
-// 	res = append(res, newOther...)
-// 	return res, nil
-// }
-
-func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
-	// First we will attemp to match the first line of the other to the reference
-	// if this provides something we can't work with then we will try to match the
-	// last line of the reference in other.
-
-	err := writeOverlap(reference, fmt.Sprintf("dedupCheckReference%d.log", overlapFile))
-	if err != nil {
-		log.Error(err)
-	}
-	err = writeOverlap(other, fmt.Sprintf("dedupCheckOther%d.log", overlapFile))
-	if err != nil {
-		log.Error(err)
-	}
-	overlapFile++
-	position, offset := findOverlapFromStart(reference, other)
-
-	if position < 0 {
-		log.Info("attempting to find end")
-		position, offset = findOverlapFromEnd(reference, other)
-		if position < 0 {
-			log.Error("no overlap look in overlap logs ", overlapFile)
-			return reference, other, nil
-		}
-	}
-
-	log.Info("sizes ", len(reference), position, len(other), offset, len(other)-offset)
-
-	if offset >= len(other) {
-		log.Info("attempting to find end")
-		position, offset = findOverlapFromEnd(reference, other)
-		log.Info("adjusted sizes ", len(reference), position, len(other), offset, len(other)-offset)
-
-		if position == -1 || offset >= len(other) || position >= len(reference) {
-			// We we are stiching things this should be handled but for now just return reference and an empty other
-			log.Info("No new lines in other ", overlapFile)
-			return reference, []*ProcessedLine{}, nil
-		}
-	}
-
-	newOther := make([]*ProcessedLine, 0, len(other)-offset)
-	newOther = append(newOther, other[offset:]...)
-
-	if checkOverlap(reference[position:], other[:offset]) {
-		return reference, newOther, nil
-	}
-	// TODO: attempt stitching here by dropping the failing line from the check
-	// and keeping it to add in
-	return reference, newOther, fmt.Errorf("dropping lines: overlapping log slices don't match this suggests missing lines, don't know how to combine", overlapFile)
-}
-
-// func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
-// 	// Assuming there a no missing lines and that overlaps are continuus.
-// 	// We can order the slices find the max overlap in the two
-// 	// Then check for an overlap
-// 	// remove the overlap from the second and append the rest
-// 	// then keep taking the next LineSlice
-// 	// until we have stiched them all together
-
-// 	sort.Slice(lineSlices, func(i, j int) bool {
-// 		startDiff := lineSlices[i].start.Sub(lineSlices[j].start)
-// 		if startDiff == 0 {
-// 			endDiff := lineSlices[i].start.Sub(lineSlices[j].start)
-// 			return endDiff > 0
-// 		}
-// 		return startDiff < 0
-// 	})
-
-// 	reference := lineSlices[0].lines
-// 	var err error
-// 	for _, other := range lineSlices[1:] {
-// 		reference, err = processOverlap(reference, other.lines)
-// 		if err != nil {
-// 			log.Error(err)
-// 		}
-// 	}
-// 	return &LineSlice{
-// 		lines: reference,
-// 		start: reference[0].Timestamp,
-// 		end:   reference[len(reference)-1].Timestamp,
-// 	}
-// }
-
-func makeSliceFromLines(lines []*ProcessedLine) *LineSlice {
+func makeSliceFromLines(lines []*ProcessedLine, generation uint32) *LineSlice {
 	return &LineSlice{
-		lines: lines,
-		start: lines[0].Timestamp,
-		end:   lines[len(lines)-1].Timestamp,
-	}
-}
-
-func dedupLineSlicesWithoutJoining(lineSlices []*LineSlice) [][]*ProcessedLine {
-	// Assuming there a no missing lines and that overlaps are continuus.
-	// We can order the slices find the max overlap in the two
-	// Then check for an overlap
-	// remove the overlap from the second and append the rest
-	// then keep taking the next LineSlice
-	// until we have stiched them all together
-
-	log.Info("LS: ", lineSlices)
-
-	for _, ls := range lineSlices {
-		err := writeOverlap(ls.lines, fmt.Sprintf("ProcessOverlap%d.log", fileNameNumber))
-		if err != nil {
-			log.Error(err)
-		}
-	}
-
-	if len(lineSlices) == 1 {
-		return [][]*ProcessedLine{lineSlices[0].lines}
-	}
-
-	sort.Slice(lineSlices, func(i, j int) bool {
-		startDiff := lineSlices[i].start.Sub(lineSlices[j].start)
-		if startDiff == 0 {
-			endDiff := lineSlices[i].start.Sub(lineSlices[j].start)
-			return endDiff > 0
-		}
-		return startDiff < 0
-	})
-
-	reference := lineSlices[0].lines
-	dedupedSliceSegments := make([][]*ProcessedLine, 0)
-	dedupedSliceSegments = append(dedupedSliceSegments, lineSlices[0].lines)
-
-	for _, other := range lineSlices[1:] {
-		segment, dedupledOther, err := dedupWithoutCombine(reference, other.lines)
-		if err != nil {
-			log.Error("dropling lines in second segment", err)
-			// TODO handle this better:
-			//   If the next segment starts at the same time as other
-			//   then if we combine the dedup then it may cause issues
-			//   so drop the lines and hope its not too much data
-			continue
-		}
-		if len(dedupledOther) == 0 {
-			log.Warn("No new lines in other skipping")
-			continue
-		}
-		dedupedSliceSegments = append(dedupedSliceSegments, dedupledOther)
-		// length of lineSlices[1:] -1
-		reference = make([]*ProcessedLine, 0, len(segment)+len(dedupledOther))
-		reference = append(reference, segment...)
-		reference = append(reference, dedupledOther...)
-	}
-
-	return dedupedSliceSegments
-}
-
-func combineSliceSegmenets(segments ...[]*ProcessedLine) []*ProcessedLine {
-	newLength := 0
-	for _, s := range segments {
-		newLength += len(s)
-	}
-	result := make([]*ProcessedLine, 0, newLength)
-	for _, s := range segments {
-		result = append(result, s...)
-	}
-
-	return result
-}
-
-func dedup(generationalLineSlices [][]*LineSlice) ([]*ProcessedLine, *LineSlice) {
-	dedupedGenerations := make([]*LineSlice, len(generationalLineSlices))
-	for i, gen := range generationalLineSlices {
-		dedupedGenerations[i] = makeSliceFromLines(
-			combineSliceSegmenets(
-				dedupLineSlicesWithoutJoining(gen)...,
-			),
-		)
-	}
-	fullyDedup := dedupLineSlicesWithoutJoining(dedupedGenerations)
-
-	writeLines := combineSliceSegmenets(fullyDedup[:len(fullyDedup)-1]...)
-	log.Info("logs: dedupled lines", len(writeLines))
-	return writeLines, makeSliceFromLines(fullyDedup[len(fullyDedup)-1])
-}
-
-func (logs *LogsCollector) flushGenerations(generations []uint32) {
-	log.Info("logs: Flushing Generations ", generations)
-	generationalLineSlices := make([][]*LineSlice, len(generations))
-	for i, genIndex := range generations {
-		gen, ok := logs.generations[genIndex]
-		if !ok {
-			log.Error("Go gen at this index", genIndex, logs.generations)
-		}
-		generationalLineSlices[i] = gen
-		log.Info("Gen ", genIndex, gen)
-	}
-
-	writeLines, lastGen := dedup(generationalLineSlices)
-
-	genlis := ""
-	for i, genIndex := range generations {
-		if i < len(generations)-1 {
-			genlis += fmt.Sprintf("-%d", genIndex)
-		}
-	}
-	err := writeOverlap(writeLines, fmt.Sprintf("Generations%s.log", genlis))
-	log.Debug(err)
-
-	for _, line := range writeLines {
-		logs.lines <- line
-	}
-
-	logs.oldestGen = generations[len(generations)-1]
-	logs.generations[logs.oldestGen] = []*LineSlice{lastGen}
-	for i := 0; i < len(generations)-1; i++ {
-		delete(logs.generations, generations[i])
+		lines:      lines,
+		start:      lines[0].Timestamp,
+		end:        lines[len(lines)-1].Timestamp,
+		generation: generation,
 	}
 }
 
@@ -434,50 +321,30 @@ func (logs *LogsCollector) flushGenerations(generations []uint32) {
 func (logs *LogsCollector) processSlices() {
 	logs.wg.Add(1)
 	defer logs.wg.Done()
-	var seenGeneration uint32 = 0
-	tryFlush := false
+	generations := Generations{
+		store:  make(map[uint32][]*LineSlice),
+		oldest: 0,
+	}
 	for {
 		select {
 		case sig := <-logs.sliceQuit:
-			// Consume the rest of the lines so we don't miss lines
-			for len(logs.lineSlices) > 0 {
+			for len(logs.lines) > 0 {
 				lineSlice := <-logs.lineSlices
-				logs.consumeLineSlice(lineSlice)
+				generations.Add(lineSlice)
 			}
-			gensToFlush := make([]uint32, len(logs.generations))
-			i := 0
-			for g := range logs.generations {
-				gensToFlush[i] = g
-				i++
-			}
-			logs.flushGenerations(gensToFlush)
-			gen := logs.generations[logs.oldestGen]
-			// gen should have been dedupled by the flush so print it out.
-			for _, line := range gen[0].lines {
-				logs.lines <- line
-			}
-
+			generations.FlushAll()
 			logs.writeQuit <- sig
 			return
 		case lineSlice := <-logs.lineSlices:
-			if seenGeneration < lineSlice.generation {
-				seenGeneration = lineSlice.generation
-				tryFlush = true
-			}
-			logs.consumeLineSlice(lineSlice)
+			generations.Add(lineSlice)
 		default:
-			if tryFlush {
-				if seenGeneration-logs.oldestGen > keepGenerations {
-					gensToFlush := make([]uint32, keepGenerations)
-					for i := 0; i < keepGenerations; i++ {
-						gensToFlush[i] = logs.oldestGen + uint32(i)
-					}
-					logs.flushGenerations(gensToFlush)
+			if generations.ShouldFlush() {
+				deduplicated := generations.Flush()
+				for _, line := range deduplicated.lines {
+					logs.lines <- line
 				}
-				tryFlush = false
-			} else {
-				time.Sleep(time.Nanosecond)
 			}
+			time.Sleep(time.Nanosecond)
 		}
 	}
 }
@@ -526,25 +393,6 @@ func processLine(line string) (*ProcessedLine, error) {
 	return processed, nil
 }
 
-func (logs *LogsCollector) processLines(line string, lineSlice *LineSlice) (string, time.Time) {
-	var lastTimestamp time.Time
-	if strings.ContainsRune(line, lineDelim) {
-		lines := strings.Split(line, "\n")
-		for index := 0; index < len(lines)-1; index++ {
-			log.Debug("logs: lines: ", lines[index])
-			processed, err := processLine(lines[index])
-			if err != nil {
-				log.Warning("logs: error when processing lines: ", err)
-			} else {
-				lineSlice.lines = append(lineSlice.lines, processed)
-				lastTimestamp = processed.Timestamp
-			}
-		}
-		line = lines[len(lines)-1]
-	}
-	return line, lastTimestamp
-}
-
 func durationPassed(first, current time.Time, duration time.Duration) bool {
 	if first.IsZero() {
 		return false
@@ -556,54 +404,25 @@ func durationPassed(first, current time.Time, duration time.Duration) bool {
 }
 
 //nolint:funlen // allow long function
-func processStream(logs *LogsCollector, stream io.ReadCloser, sinceTime time.Duration) error {
-	line := ""
-	lastTimestamp := time.Time{}
-	firstTimestamp := time.Time{}
-	timestamp := time.Time{}
-	buf := make([]byte, streamingBufferSize)
-	expectedDuration := sinceTime + followDuration
-
-	lineSlice := &LineSlice{
-		lines:      make([]*ProcessedLine, 0),
-		generation: logs.lastPoll.Generation(),
-	}
-
-	for !durationPassed(firstTimestamp, lastTimestamp, expectedDuration) {
-		nBytes, err := stream.Read(buf)
-		if err == io.EOF { //nolint:errorlint // No need for Is or As check as this should just be EOF
-			log.Warning("log stream ended unexpectedly, possible log rotation detected at ", lastTimestamp)
-			break
+func processStream(stream io.ReadCloser, expectedEndtime time.Time) ([]*ProcessedLine, error) {
+	scanner := bufio.NewScanner(stream)
+	segment := make([]*ProcessedLine, 0)
+	for scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return segment, err
 		}
+		pline, err := processLine(scanner.Text())
 		if err != nil {
-			return fmt.Errorf("failed reading buffer: %w", err)
-		}
-		if nBytes == 0 {
+			log.Warning("failed to process line: ", err)
 			continue
 		}
-		line += string(buf[:nBytes])
-		line, timestamp = logs.processLines(line, lineSlice)
-
-		// set First legitimate timestamp
-		if !timestamp.IsZero() {
-			if firstTimestamp.IsZero() {
-				firstTimestamp = timestamp
-			}
-			lastTimestamp = timestamp
+		segment = append(segment, pline)
+		if expectedEndtime.Sub(pline.Timestamp) < 0 {
+			// Were past our expected end time lets finish there
+			break
 		}
 	}
-
-	log.Info("logs: Finish stream")
-
-	if firstTimestamp.IsZero() || lastTimestamp.IsZero() {
-		return fmt.Errorf("zero timestamp after processing lines first(%v) or last (%s)", firstTimestamp, lastTimestamp)
-	}
-
-	lineSlice.start = firstTimestamp
-	lineSlice.end = lastTimestamp
-	logs.lineSlices <- lineSlice
-
-	return nil
+	return segment, nil
 }
 
 func (logs *LogsCollector) poll() error {
@@ -632,10 +451,13 @@ func (logs *LogsCollector) poll() error {
 	defer stream.Close()
 
 	start := time.Now()
-	err = processStream(logs, stream, sinceTime)
+	generation := logs.lastPoll.Generation()
+	lines, err := processStream(stream, time.Now().Add(followDuration))
 	if err != nil {
 		return err
 	}
+	lineSlice := makeSliceFromLines(lines, generation)
+	logs.lineSlices <- lineSlice
 	logs.SetLastPoll(start)
 	return nil
 }
@@ -675,7 +497,6 @@ func NewLogsCollector(constructor *CollectionConstructor) (Collector, error) {
 		pruned:             true,
 		lineSlices:         make(chan *LineSlice, lineSliceChanLength),
 		lines:              make(chan *ProcessedLine, lineChanLength),
-		generations:        make(map[uint32][]*LineSlice),
 		lastPoll:           GenerationalLockedTime{time: time.Now().Add(-time.Second)}, // Stop initial since seconds from being 0 as its invalid
 		withTimeStamps:     constructor.IncludeLogTimestamps,
 		logsOutputFileName: constructor.LogsOutputFile,
