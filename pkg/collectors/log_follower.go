@@ -209,13 +209,20 @@ func writeOverlap(lines []*ProcessedLine, name string) error {
 func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
 	position := findOverlap(reference, other)
 	if position == -1 {
-		log.Info("No overlap apparantly", fileNameNumber-2, fileNameNumber-1)
+		log.Info("No overlap apparently", fileNameNumber-2, fileNameNumber-1)
 		return reference, other, nil
 	}
 	offset := len(reference) - position
+	log.Info("sizes ", len(reference), position, len(other), offset, len(other)-offset)
+
+	if offset >= len(other) {
+		log.Info("adjusted sizes ", len(reference), position, len(other), offset, len(other)-offset)
+		offset = len(other)
+	}
+
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
 	newOther = append(newOther, other[offset:]...)
-	log.Info("sizes ", len(reference), position, len(other), offset, len(other)-offset)
+
 	if checkOverlap(reference[position:], other[:offset]) {
 		return reference, newOther, nil
 	}
