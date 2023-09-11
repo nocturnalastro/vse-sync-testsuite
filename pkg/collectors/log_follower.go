@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -151,17 +152,28 @@ func (logs *LogsCollector) writeLine(line *ProcessedLine, writer io.StringWriter
 	}
 }
 
-func findOverlap(x, y []*ProcessedLine) int {
+func findOverlap(x, y []*ProcessedLine, comparisonIndex int) int {
 	// Start off by being dumb and just moving first line of the second
 	position := len(x) - 1
-	checkLine := y[0].Raw
+	checkLine := strings.TrimRightFunc(y[comparisonIndex].Raw, unicode.IsSpace)
+
 	for position >= 0 {
-		if x[position].Raw == checkLine {
+		if strings.TrimRightFunc(x[position].Raw, unicode.IsSpace) == checkLine {
 			break
 		}
 		position--
 	}
 	return position
+}
+
+func findOverlapFromStart(reference, other []*ProcessedLine) (int, int) {
+	position := findOverlap(reference, other, 0)
+	return position, len(reference) - position
+}
+
+func findOverlapFromEnd(reference, other []*ProcessedLine) (int, int) {
+	offset := findOverlap(other, reference, len(reference)-1)
+	return len(reference) - offset, offset
 }
 
 func checkOverlap(x, y []*ProcessedLine) bool {
@@ -208,25 +220,42 @@ func writeOverlap(lines []*ProcessedLine, name string) error {
 // }
 
 func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine, error) {
-	position := findOverlap(reference, other)
-	err := writeOverlap(reference, fmt.Sprintf("dedupCheckReference%d.log", overlapFile))
-	log.Error(err)
-	err = writeOverlap(reference, fmt.Sprintf("dedupCheckOther%d.log", overlapFile))
-	log.Error(err)
-	overlapFile++
+	// First we will attemp to match the first line of the other to the reference
+	// if this provides something we can't work with then we will try to match the
+	// last line of the reference in other.
 
-	if position == -1 {
-		log.Info("No overlap apparently", fileNameNumber-2, fileNameNumber-1)
-		return reference, other, nil
+	err := writeOverlap(reference, fmt.Sprintf("dedupCheckReference%d.log", overlapFile))
+	if err != nil {
+		log.Error(err)
 	}
-	offset := len(reference) - position
+	err = writeOverlap(other, fmt.Sprintf("dedupCheckOther%d.log", overlapFile))
+	if err != nil {
+		log.Error(err)
+	}
+	overlapFile++
+	position, offset := findOverlapFromStart(reference, other)
+
+	if position < 0 {
+		log.Info("attempting to find end")
+		position, offset = findOverlapFromEnd(reference, other)
+		if position < 0 {
+			log.Error("no overlap look in overlap logs ", overlapFile)
+			return reference, other, nil
+		}
+	}
+
 	log.Info("sizes ", len(reference), position, len(other), offset, len(other)-offset)
 
 	if offset >= len(other) {
-		// We we are stiching things this should be handled but for now just return reference and an empty other
-		log.Info("No new lines in other ", overlapFile)
+		log.Info("attempting to find end")
+		position, offset = findOverlapFromEnd(reference, other)
+		log.Info("adjusted sizes ", len(reference), position, len(other), offset, len(other)-offset)
 
-		return reference, []*ProcessedLine{}, nil
+		if position == -1 || offset >= len(other) || position >= len(reference) {
+			// We we are stiching things this should be handled but for now just return reference and an empty other
+			log.Info("No new lines in other ", overlapFile)
+			return reference, []*ProcessedLine{}, nil
+		}
 	}
 
 	newOther := make([]*ProcessedLine, 0, len(other)-offset)
@@ -237,7 +266,7 @@ func dedupWithoutCombine(reference, other []*ProcessedLine) ([]*ProcessedLine, [
 	}
 	// TODO: attempt stitching here by dropping the failing line from the check
 	// and keeping it to add in
-	return reference, newOther, fmt.Errorf("dropping lines: overlapping log slices don't match this suggests missing lines, don't know how to combine")
+	return reference, newOther, fmt.Errorf("dropping lines: overlapping log slices don't match this suggests missing lines, don't know how to combine", overlapFile)
 }
 
 // func dedupLineSlices(lineSlices []*LineSlice) *LineSlice {
