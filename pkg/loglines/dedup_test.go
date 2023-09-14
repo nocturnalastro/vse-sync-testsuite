@@ -37,26 +37,20 @@ func loadLinesFromFile(path string, generation uint32) (*loglines.LineSlice, err
 	return loglines.MakeSliceFromLines(lines, generation), nil
 }
 
-var _ = Describe("NewContainerContext", func() {
+var _ = Describe("Dedup AB tests", func() {
 	When("called Deduplicating a two line slices with total overlap", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a single set of the lines", func() {
-			// TODO: Make setup failures distinct from test
-			lineSlice1, err := loadLinesFromFile("test_files/all.log", 0)
+			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
 			}
-			lineSlice2, err := loadLinesFromFile("test_files/all.log", 0)
-			if err != nil {
-				Panic()
-			}
-			dl1, dl2 := loglines.DedupAB(lineSlice1.Lines, lineSlice2.Lines)
+			dl1, dl2 := loglines.DedupAB(lineSlice.Lines, lineSlice.Lines)
 			Expect(dl1).To(BeEmpty())
-			Expect(dl2).To(Equal(lineSlice1.Lines))
+			Expect(dl2).To(Equal(lineSlice.Lines))
 		})
 	})
 	When("called Deduplicating a two line slices with no overlap", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a both sets of the lines", func() {
-			// TODO: Make setup failures distinct from test
 			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
@@ -68,7 +62,6 @@ var _ = Describe("NewContainerContext", func() {
 	})
 	When("called Deduplicating a two line slices with some overlap", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a both sets of the lines", func() {
-			// TODO: Make setup failures distinct from test
 			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
@@ -80,7 +73,6 @@ var _ = Describe("NewContainerContext", func() {
 	})
 	When("called Deduplicating a if one is an extension of the other", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a empty set and a complete set should be return", func() {
-			// TODO: Make setup failures distinct from test
 			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
@@ -92,7 +84,6 @@ var _ = Describe("NewContainerContext", func() {
 	})
 	When("called Deduplicating a two line slices with first line of a missing with overlap", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a empty set and a complete set should be return", func() {
-			// TODO: Make setup failures distinct from test
 			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
@@ -104,7 +95,6 @@ var _ = Describe("NewContainerContext", func() {
 	})
 	When("called Deduplicating a two line slices with first slice is missing every 3rd line", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a empty set and a complete set should be return", func() {
-			// TODO: Make setup failures distinct from test
 			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
@@ -123,7 +113,6 @@ var _ = Describe("NewContainerContext", func() {
 	})
 	When("called Deduplicating a two line slices with second slice is missing every 3rd line", func() { //nolint:dupl // don't want to dupl tests
 		It("should return a empty set and a complete set should be return", func() {
-			// TODO: Make setup failures distinct from test
 			lineSlice, err := loadLinesFromFile("test_files/all.log", 0)
 			if err != nil {
 				Panic()
