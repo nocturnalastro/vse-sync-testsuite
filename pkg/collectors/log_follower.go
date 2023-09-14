@@ -15,6 +15,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
@@ -219,15 +220,12 @@ func (logs *LogsCollector) poll() error {
 	if err != nil {
 		return fmt.Errorf("failed to poll: %w", err)
 	}
-	sinceTime := time.Since(logs.lastPoll.Time())
-	sinceSeconds := int64(sinceTime.Seconds())
-
 	podLogOptions := v1.PodLogOptions{
-		SinceSeconds: &sinceSeconds,
-		Container:    contexts.PTPContainer,
-		Follow:       true,
-		Previous:     false,
-		Timestamps:   true,
+		SinceTime:  &metav1.Time{Time: logs.lastPoll.Time()},
+		Container:  contexts.PTPContainer,
+		Follow:     true,
+		Previous:   false,
+		Timestamps: true,
 	}
 	podLogRequest := logs.client.K8sClient.CoreV1().
 		Pods(contexts.PTPNamespace).
