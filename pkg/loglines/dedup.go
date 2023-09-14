@@ -34,10 +34,15 @@ func findLineIndex(needle *ProcessedLine, list []*ProcessedLine) int {
 	return -1
 }
 
+//nolint:varnamelen // x and y are just two sets of lines
 func findIncompatableLines(x, y []*ProcessedLine) int {
-	for i, line := range x {
-		if line.Full != y[i].Full {
-			return i
+	for index, line := range x {
+		if index >= len(y) {
+			// we've reached the end of y so no bad lines found
+			break
+		}
+		if line.Full != y[index].Full {
+			return index
 		}
 	}
 	return -1
