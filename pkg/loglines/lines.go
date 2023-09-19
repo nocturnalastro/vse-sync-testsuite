@@ -157,11 +157,11 @@ func (dump *GenerationDumper) dumpProcessor() {
 
 func (dump *GenerationDumper) Stop() {
 	dump.quit <- &os.Kill
-	log.Info("eaiting for generation dumping to complete")
+	log.Debug("waiting for generation dumping to complete")
 	dump.wg.Wait()
 
 	if !dump.keepLogs {
-		log.Info("removing generation dump files")
+		log.Debug("removing generation dump files")
 		utils.RemoveTempFiles(dump.dir, dump.filenames)
 	}
 }
@@ -175,17 +175,17 @@ func (gens *Generations) Add(lineSlice *LineSlice) {
 	gens.Store[lineSlice.Generation] = append(genSlice, lineSlice)
 	gens.Dumper.DumpLines(lineSlice, numberInGen)
 
-	log.Info("Logs: all generations: ", gens.Store)
+	log.Debug("Logs: all generations: ", gens.Store)
 
 	if gens.Latest < lineSlice.Generation {
 		gens.Latest = lineSlice.Generation
-		log.Info("Logs: lastest updated ", gens.Latest)
-		log.Info("Logs: should flush ", gens.ShouldFlush())
+		log.Debug("Logs: lastest updated ", gens.Latest)
+		log.Debug("Logs: should flush ", gens.ShouldFlush())
 	}
 }
 
 func (gens *Generations) removeOlderThan(keepGen uint32) {
-	log.Info("Removing geners <", keepGen)
+	log.Debug("Removing geners <", keepGen)
 	for g := range gens.Store {
 		if g < keepGen {
 			delete(gens.Store, g)
@@ -201,7 +201,7 @@ func (gens *Generations) ShouldFlush() bool {
 
 func (gens *Generations) Flush() *LineSlice {
 	lastGen := gens.Oldest + keepGenerations
-	log.Info("Flushing generations <=", lastGen)
+	log.Debug("Flushing generations <=", lastGen)
 
 	gensToFlush := make([][]*LineSlice, 0)
 	for index, value := range gens.Store {
@@ -216,7 +216,7 @@ func (gens *Generations) Flush() *LineSlice {
 }
 
 func (gens *Generations) FlushAll() *LineSlice {
-	log.Info("Flushing all generations")
+	log.Debug("Flushing all generations")
 	gensToFlush := make([][]*LineSlice, 0)
 	for _, value := range gens.Store {
 		gensToFlush = append(gensToFlush, value)
@@ -227,7 +227,7 @@ func (gens *Generations) FlushAll() *LineSlice {
 
 //nolint:gocritic // don't want to name the return values as they should be built later
 func (gens *Generations) flush(generations [][]*LineSlice) (*LineSlice, *LineSlice) {
-	log.Info("genrations: ", generations)
+	log.Debug("genrations: ", generations)
 	sort.Slice(generations, func(i, j int) bool {
 		return generations[i][0].Generation < generations[j][0].Generation
 	})

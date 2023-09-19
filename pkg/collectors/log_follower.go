@@ -115,17 +115,17 @@ func (logs *LogsCollector) processSlices() {
 	for {
 		select {
 		case sig := <-logs.sliceQuit:
-			log.Info("Clearing slices")
+			log.Debug("Clearing slices")
 			for len(logs.slices) > 0 {
 				lineSlice := <-logs.slices
 				logs.generations.Add(lineSlice)
 			}
-			log.Info("Flushing remaining generations")
+			log.Debug("Flushing remaining generations")
 			deduplicated := logs.generations.FlushAll()
 			for _, line := range deduplicated.Lines {
 				logs.lines <- line
 			}
-			log.Info("Sending Signal to writer")
+			log.Debug("Sending Signal to writer")
 			logs.writeQuit <- sig
 			return
 		case lineSlice := <-logs.slices:
@@ -264,7 +264,7 @@ func (logs *LogsCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroup
 func (logs *LogsCollector) CleanUp() error {
 	logs.running = false
 	logs.sliceQuit <- os.Kill
-	log.Info("waiting for logs to complete")
+	log.Debug("waiting for logs to complete")
 	logs.wg.Wait()
 	logs.generations.Dumper.Stop()
 	return nil

@@ -128,12 +128,12 @@ func handleIncompleteOverlap(a, b []*ProcessedLine) ([]*ProcessedLine, []*Proces
 //nolint:gocritic,varnamelen // don't want to name the return values as they should be built later, I think a, b are expressive enough names
 func DedupAB(a, b []*ProcessedLine) ([]*ProcessedLine, []*ProcessedLine) {
 	bFirstLineIndex := findLineIndex(b[0], a)
-	log.Info("line index: ", bFirstLineIndex)
+	log.Debug("line index: ", bFirstLineIndex)
 	if bFirstLineIndex == -1 {
-		log.Info("didn't to find first line of b")
+		log.Debug("didn't to find first line of b")
 		lastLineIndex := findLineIndex(a[len(a)-1], b)
 		if lastLineIndex == -1 {
-			log.Info("didn't to find last line of a; assuming no overlap")
+			log.Debug("didn't to find last line of a; assuming no overlap")
 			return a, b
 		}
 
