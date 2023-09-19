@@ -286,7 +286,7 @@ func NewLogsCollector(constructor *CollectionConstructor) (Collector, error) {
 		logsOutputFileName: constructor.LogsOutputFile,
 		generations: loglines.Generations{
 			Store:  make(map[uint32][]*loglines.LineSlice),
-			Dumper: loglines.NewGenerationDumper(constructor.TempDir),
+			Dumper: loglines.NewGenerationDumper(constructor.TempDir, constructor.KeepDebugFiles),
 		},
 	}
 	return &collector, nil

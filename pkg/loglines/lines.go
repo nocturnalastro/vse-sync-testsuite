@@ -96,12 +96,13 @@ type Dump struct {
 	numberInGen int
 }
 
-func NewGenerationDumper(dir string) *GenerationDumper {
+func NewGenerationDumper(dir string, keepLogs bool) *GenerationDumper {
 	return &GenerationDumper{
 		dir:       dir,
 		toDump:    make(chan *Dump, dumpChannelSize),
 		quit:      make(chan *os.Signal),
 		filenames: make([]string, 0),
+		keepLogs:  keepLogs,
 	}
 }
 
