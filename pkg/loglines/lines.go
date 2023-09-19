@@ -156,8 +156,11 @@ func (dump *GenerationDumper) dumpProcessor() {
 
 func (dump *GenerationDumper) Stop() {
 	dump.quit <- &os.Kill
+	log.Info("eaiting for generation dumping to complete")
 	dump.wg.Wait()
+
 	if !dump.keepLogs {
+		log.Info("removing generation dump files")
 		utils.RemoveTempFiles(dump.dir, dump.filenames)
 	}
 }

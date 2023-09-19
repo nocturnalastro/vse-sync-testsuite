@@ -264,6 +264,7 @@ func (logs *LogsCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroup
 func (logs *LogsCollector) CleanUp() error {
 	logs.running = false
 	logs.sliceQuit <- os.Kill
+	log.Info("waiting for logs to complete")
 	logs.wg.Wait()
 	logs.generations.Dumper.Stop()
 	return nil
