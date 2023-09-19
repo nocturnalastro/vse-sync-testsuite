@@ -136,6 +136,7 @@ func (dump *GenerationDumper) writeToFile(toDump *Dump) {
 }
 
 func (dump *GenerationDumper) dumpProcessor() {
+	defer dump.wg.Done()
 	for {
 		select {
 		case <-dump.quit:
