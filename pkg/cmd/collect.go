@@ -26,6 +26,7 @@ const (
 	defaultIncludeLogTimestamps bool   = false
 	defaultTempDir              string = "."
 	defaultKeepDebugFiles       bool   = false
+	tempdirPerm                        = 0755
 )
 
 var (
@@ -73,7 +74,7 @@ var collectCmd = &cobra.Command{
 			}
 		}
 
-		if err := os.MkdirAll(tempDir, os.ModePerm); err != nil {
+		if err := os.MkdirAll(tempDir, tempdirPerm); err != nil {
 			log.Fatal(err)
 		}
 
