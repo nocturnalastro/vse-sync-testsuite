@@ -65,7 +65,9 @@ func ParseTimestamp(timestamp string) (time.Time, error) {
 }
 
 func RemoveTempFiles(dir string, filenames []string) {
+	dir = filepath.Clean(dir)
 	for _, fname := range filenames {
+		log.Info()
 		if !strings.HasPrefix(fname, dir) {
 			fname = filepath.Join(dir, fname)
 		}
