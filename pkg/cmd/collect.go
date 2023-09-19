@@ -21,6 +21,8 @@ const (
 	defaultPollInterval         int    = 1
 	defaultDevInfoInterval      int    = 60
 	defaultIncludeLogTimestamps bool   = false
+	defaultTempDir              string = "."
+	defaultKeepDebugFiles       bool   = false
 )
 
 var (
@@ -30,6 +32,8 @@ var (
 	collectorNames         []string
 	logsOutputFile         string
 	includeLogTimestamps   bool
+	tempDir                string
+	keepDebugFiles         bool
 )
 
 // collectCmd represents the collect command
@@ -64,6 +68,8 @@ var collectCmd = &cobra.Command{
 			useAnalyserJSON,
 			logsOutputFile,
 			includeLogTimestamps,
+			tempDir,
+			keepDebugFiles,
 		)
 	},
 }
@@ -127,4 +133,8 @@ func init() { //nolint:funlen // Allow this to get a little long
 		"log-timestamps", defaultIncludeLogTimestamps,
 		"Specifies if collected logs should include timestamps or not. (default is false)",
 	)
+
+	collectCmd.Flags().StringVarP(&tempDir, "tempdir", "t", defaultTempDir,
+		"Directory for storing temp/debug files. Must exist.")
+	collectCmd.Flags().BoolVar(&keepDebugFiles, "keep", defaultKeepDebugFiles, "Keep debug files")
 }

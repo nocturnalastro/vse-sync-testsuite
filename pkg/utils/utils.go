@@ -3,8 +3,12 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -58,4 +62,18 @@ func ParseTimestamp(timestamp string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("failed to parse timestamp as a duration %w", err)
 	}
 	return Epoch.Add(duration).UTC(), nil
+}
+
+func RemoveTempFiles(dir string, filenames []string) {
+	for _, fname := range filenames {
+		if !strings.HasPrefix(fname, dir) {
+			fname = filepath.Join(dir, fname)
+		}
+		err := os.Remove(fname)
+		if err != nil && errors.Is(err, fs.ErrNotExist) {
+			log.Errorf("Failed to remove temp file %s: %s", fname, err.Error())
+		}
+	}
+	// os.Remove will not remove a director if has files so its safe to call on the Dir
+	os.Remove(dir)
 }

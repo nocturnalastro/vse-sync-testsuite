@@ -68,6 +68,8 @@ func (runner *CollectorRunner) initialise(
 	devInfoAnnouceInterval int,
 	logsOutputFile string,
 	includeLogTimestamps bool,
+	tempDir string,
+	keepDebugFiles bool,
 ) {
 	runner.pollInterval = pollInterval
 	runner.endTime = time.Now().Add(requestedDuration)
@@ -82,6 +84,8 @@ func (runner *CollectorRunner) initialise(
 		ErroredPolls:           runner.erroredPolls,
 		LogsOutputFile:         logsOutputFile,
 		IncludeLogTimestamps:   includeLogTimestamps,
+		TempDir:                tempDir,
+		KeepDebugFiles:         keepDebugFiles,
 	}
 
 	registry := collectors.GetRegistry()
@@ -215,6 +219,8 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 	useAnalyserJSON bool,
 	logsOutputFile string,
 	includeLogTimestamps bool,
+	tempDir string,
+	keepDebugFiles bool,
 ) {
 	clientset, err := clients.GetClientset(kubeConfig)
 	utils.IfErrorExitOrPanic(err)
@@ -235,6 +241,8 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 		devInfoAnnouceInterval,
 		logsOutputFile,
 		includeLogTimestamps,
+		tempDir,
+		keepDebugFiles,
 	)
 	runner.start()
 

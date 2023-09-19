@@ -14,8 +14,6 @@ const (
 	keepGenerations = 5
 )
 
-var fileNameNumber int
-
 func dedupGeneration(lineSlices []*LineSlice) *LineSlice {
 	ls1, ls2 := DedupLineSlices(lineSlices)
 	output := MakeSliceFromLines(MakeNewCombinedSlice(ls1.Lines, ls2.Lines), ls2.Generation)

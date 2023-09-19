@@ -4,6 +4,8 @@ package loglines
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -11,6 +13,12 @@ import (
 	"unicode"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
+)
+
+const (
+	dumpChannelSize = 100
 )
 
 type ProcessedLine struct {
@@ -78,8 +86,79 @@ type LineSlice struct {
 
 type Generations struct {
 	Store  map[uint32][]*LineSlice
+	Dumper *GenerationDumper
 	Latest uint32
 	Oldest uint32
+}
+
+type Dump struct {
+	slice       *LineSlice
+	numberInGen int
+}
+
+func NewGenerationDumper(dir string) *GenerationDumper {
+	return &GenerationDumper{
+		dir:       dir,
+		toDump:    make(chan *Dump, dumpChannelSize),
+		quit:      make(chan *os.Signal),
+		filenames: make([]string, 0),
+	}
+}
+
+type GenerationDumper struct {
+	dir       string
+	toDump    chan *Dump
+	quit      chan *os.Signal
+	filenames []string
+	keepLogs  bool
+	wg        sync.WaitGroup
+}
+
+func (dump *GenerationDumper) Start() {
+	dump.wg.Add(1)
+	go dump.dumpProcessor()
+}
+
+func (dump *GenerationDumper) DumpLines(ls *LineSlice, numberInGen int) {
+	dump.toDump <- &Dump{slice: ls, numberInGen: numberInGen}
+}
+
+func (dump *GenerationDumper) writeToFile(toDump *Dump) {
+	fname := filepath.Join(
+		dump.dir,
+		fmt.Sprintf("generation-%d-%d.log", toDump.slice.Generation, toDump.numberInGen),
+	)
+	dump.filenames = append(dump.filenames, fname)
+	err := WriteOverlap(toDump.slice.Lines, fname)
+	if err != nil {
+		log.Errorf("failed to write generation dump file: %s", err.Error())
+	}
+}
+
+func (dump *GenerationDumper) dumpProcessor() {
+	for {
+		select {
+		case <-dump.quit:
+			log.Info("Dumping slices")
+			for len(dump.toDump) > 0 {
+				toDump := <-dump.toDump
+				dump.writeToFile(toDump)
+			}
+			return
+		case toDump := <-dump.toDump:
+			dump.writeToFile(toDump)
+		default:
+			time.Sleep(time.Nanosecond)
+		}
+	}
+}
+
+func (dump *GenerationDumper) Stop() {
+	dump.quit <- &os.Kill
+	dump.wg.Wait()
+	if !dump.keepLogs {
+		utils.RemoveTempFiles(dump.dir, dump.filenames)
+	}
 }
 
 func (gens *Generations) Add(lineSlice *LineSlice) {
@@ -87,8 +166,9 @@ func (gens *Generations) Add(lineSlice *LineSlice) {
 	if !ok {
 		genSlice = make([]*LineSlice, 0)
 	}
-	genSlice = append(genSlice, lineSlice)
-	gens.Store[lineSlice.Generation] = genSlice
+	numberInGen := len(genSlice)
+	gens.Store[lineSlice.Generation] = append(genSlice, lineSlice)
+	gens.Dumper.DumpLines(lineSlice, numberInGen)
 
 	log.Info("Logs: all generations: ", gens.Store)
 
@@ -148,19 +228,8 @@ func (gens *Generations) flush(generations [][]*LineSlice) (*LineSlice, *LineSli
 	})
 	dedupGen := make([]*LineSlice, len(generations))
 	for index, gen := range generations {
-		for j, g := range gen {
-			err := WriteOverlap(g.Lines, fmt.Sprintf("Generation%d-%d-%d.log", g.Generation, j, fileNameNumber))
-			if err != nil {
-				log.Error(err)
-			}
-		}
 		dedupGen[index] = dedupGeneration(gen)
-		err := WriteOverlap(dedupGen[index].Lines, fmt.Sprintf("DedupGeneration%d-%d.log", gen[0].Generation, fileNameNumber))
-		if err != nil {
-			log.Error(err)
-		}
 	}
-	fileNameNumber++
 	return DedupLineSlices(dedupGen)
 }
 

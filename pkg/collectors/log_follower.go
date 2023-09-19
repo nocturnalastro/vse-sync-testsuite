@@ -55,11 +55,12 @@ var (
 // Log aggregators would be preferred over this method however this requires extra infra
 // which might not be present in the environment.
 type LogsCollector struct {
-	sliceQuit          chan os.Signal
+	generations        loglines.Generations
 	writeQuit          chan os.Signal
 	lines              chan *loglines.ProcessedLine
-	lineSlices         chan *loglines.LineSlice
+	slices             chan *loglines.LineSlice
 	client             *clients.Clientset
+	sliceQuit          chan os.Signal
 	logsOutputFileName string
 	lastPoll           loglines.GenerationalLockedTime
 	wg                 sync.WaitGroup
@@ -90,6 +91,7 @@ func (logs *LogsCollector) SetLastPoll(pollTime time.Time) {
 func (logs *LogsCollector) Start() error {
 	go logs.processSlices()
 	go logs.writeToLogFile()
+	logs.generations.Dumper.Start()
 	logs.running = true
 	return nil
 }
@@ -110,36 +112,27 @@ func (logs *LogsCollector) writeLine(line *loglines.ProcessedLine, writer io.Str
 func (logs *LogsCollector) processSlices() {
 	logs.wg.Add(1)
 	defer logs.wg.Done()
-	generations := loglines.Generations{
-		Store: make(map[uint32][]*loglines.LineSlice),
-	}
 	for {
 		select {
 		case sig := <-logs.sliceQuit:
 			log.Info("Clearing slices")
-			for len(logs.lineSlices) > 0 {
-				lineSlice := <-logs.lineSlices
-				generations.Add(lineSlice)
+			for len(logs.slices) > 0 {
+				lineSlice := <-logs.slices
+				logs.generations.Add(lineSlice)
 			}
 			log.Info("Flushing remaining generations")
-			deduplicated := generations.FlushAll()
+			deduplicated := logs.generations.FlushAll()
 			for _, line := range deduplicated.Lines {
 				logs.lines <- line
 			}
 			log.Info("Sending Signal to writer")
 			logs.writeQuit <- sig
 			return
-		case lineSlice := <-logs.lineSlices:
-			generations.Add(lineSlice)
+		case lineSlice := <-logs.slices:
+			logs.generations.Add(lineSlice)
 		default:
-			if generations.ShouldFlush() {
-				old := generations.Oldest
-				deduplicated := generations.Flush()
-				newOld := generations.Oldest
-				err := loglines.WriteOverlap(deduplicated.Lines, fmt.Sprintf("SentToWrite-%d-%d.log", old, newOld-1))
-				if err != nil {
-					log.Error(err)
-				}
+			if logs.generations.ShouldFlush() {
+				deduplicated := logs.generations.Flush()
 				for _, line := range deduplicated.Lines {
 					logs.lines <- line
 				}
@@ -245,7 +238,7 @@ func (logs *LogsCollector) poll() error {
 	}
 	if len(lines) > 0 {
 		lineSlice := loglines.MakeSliceFromLines(lines, generation)
-		logs.lineSlices <- lineSlice
+		logs.slices <- lineSlice
 		logs.SetLastPoll(start)
 	}
 	return nil
@@ -272,6 +265,7 @@ func (logs *LogsCollector) CleanUp() error {
 	logs.running = false
 	logs.sliceQuit <- os.Kill
 	logs.wg.Wait()
+	logs.generations.Dumper.Stop()
 	return nil
 }
 
@@ -284,11 +278,15 @@ func NewLogsCollector(constructor *CollectionConstructor) (Collector, error) {
 		writeQuit:          make(chan os.Signal),
 		pollInterval:       logPollInterval,
 		pruned:             true,
-		lineSlices:         make(chan *loglines.LineSlice, lineSliceChanLength),
+		slices:             make(chan *loglines.LineSlice, lineSliceChanLength),
 		lines:              make(chan *loglines.ProcessedLine, lineChanLength),
 		lastPoll:           loglines.NewGenerationalLockedTime(time.Now().Add(-time.Second)), // Stop initial since seconds from being 0 as its invalid
 		withTimeStamps:     constructor.IncludeLogTimestamps,
 		logsOutputFileName: constructor.LogsOutputFile,
+		generations: loglines.Generations{
+			Store:  make(map[uint32][]*loglines.LineSlice),
+			Dumper: loglines.NewGenerationDumper(constructor.TempDir),
+		},
 	}
 	return &collector, nil
 }
