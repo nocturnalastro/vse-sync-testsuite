@@ -5,6 +5,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -56,6 +59,22 @@ var collectCmd = &cobra.Command{
 					errors.New("if Logs collector is selected you must also provide a log output file")),
 				)
 			}
+		}
+
+		if strings.Contains(tempDir, "~") {
+			usr, err := user.Current()
+			if err != nil {
+				log.Fatal("Failed to result homedir for current user in --tempdir")
+			}
+			if tempDir == "~" {
+				tempDir = usr.HomeDir
+			} else if strings.HasPrefix(tempDir, "~/") {
+				tempDir = filepath.Join(usr.HomeDir, tempDir[2:])
+			}
+		}
+
+		if err := os.MkdirAll(tempDir, os.ModePerm); err != nil {
+			log.Fatal(err)
 		}
 
 		collectionRunner.Run(
