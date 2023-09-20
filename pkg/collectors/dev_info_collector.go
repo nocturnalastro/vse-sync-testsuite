@@ -138,7 +138,6 @@ func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *CollectionConstructo
 	checkErrors := make([]error, 0)
 	checks := []validations.Validation{
 		validations.NewDeviceDetails(ptpDevInfo),
-		validations.NewDeviceDriver(ptpDevInfo),
 		validations.NewDeviceFirmware(ptpDevInfo),
 	}
 
@@ -151,6 +150,15 @@ func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *CollectionConstructo
 			} else {
 				log.Warningf("failed to verify %s: %s", check.GetDescription(), err.Error())
 			}
+		}
+	}
+
+	devCheck := validations.NewDeviceDriver(ptpDevInfo)
+	if err := devCheck.Verify(); err != nil {
+		if !devCheck.IsLikelyOOT() {
+			checkErrors = append(checkErrors, err)
+		} else {
+			log.Warnf("Likely an OOT Driver version: %s", devCheck.Version)
 		}
 	}
 

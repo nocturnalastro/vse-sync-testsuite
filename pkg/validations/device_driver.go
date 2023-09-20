@@ -31,19 +31,21 @@ func (dc *DeviceDriverCheck) Verify() error {
 	if !semver.IsValid(ver) {
 		return fmt.Errorf("unable to parse device driver version (%s)", dc.Version)
 	}
-	if semver.Compare(ver, fmt.Sprintf("v%s", dc.MinOOTVersion)) < 0 {
-		return utils.NewInvalidEnvError(fmt.Errorf("unexpected version: %s < %s", dc.Version, dc.MinVersion))
-	}
 	if semver.Compare(ver, fmt.Sprintf("v%s", dc.MinVersion)) < 0 {
-		return utils.NewInvalidEnvError(
-			fmt.Errorf("unexpected version: %s < %s, likely out of tree driver", dc.Version, dc.MinVersion))
+		return utils.NewInvalidEnvError(fmt.Errorf("unexpected version: %s < %s", dc.Version, dc.MinVersion))
 	}
 	return nil
 }
 
-// func (dc *DeviceDriverCheck) GetData() any { //nolint:ireturn // data will vary for each validation
-// 	return dc.checkVersion
-// }
+func (dc *DeviceDriverCheck) IsLikelyOOT() bool {
+	ver := fmt.Sprintf("v%s", dc.Version)
+
+	if semver.Compare(ver, fmt.Sprintf("v%s", dc.MinOOTVersion)) >= 0 &&
+		semver.Major(ver) == "1" {
+		return true
+	}
+	return false
+}
 
 func NewDeviceDriver(ptpDevInfo *devices.PTPDeviceInfo) *DeviceDriverCheck {
 	return &DeviceDriverCheck{
