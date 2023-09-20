@@ -4,11 +4,11 @@ package validations
 
 import (
 	"fmt"
-	"strings"
 
 	"golang.org/x/mod/semver"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
 )
 
 const (
@@ -19,38 +19,42 @@ const (
 var (
 	minDriverVersion       = "1.11.0"
 	minInTreeDriverVersion = "5.14.0"
-
-	outOfTreeIceDriverSegments = 3
 )
 
-func NewDeviceDriver(ptpDevInfo *devices.PTPDeviceInfo) *VersionWithErrorCheck {
-	var err error
-	ver := fmt.Sprintf("v%s", ptpDevInfo.DriverVersion)
-	if semver.IsValid(ver) {
-		if semver.Compare(ver, fmt.Sprintf("v%s", minInTreeDriverVersion)) < 0 {
-			err = fmt.Errorf(
-				"found device driver version %s. This is below minimum version %s so likely an out of tree driver",
-				ptpDevInfo.DriverVersion, minInTreeDriverVersion,
-			)
-		}
-	} else {
-		if strings.Count(ptpDevInfo.DriverVersion, ".") == outOfTreeIceDriverSegments {
-			err = fmt.Errorf(
-				"unable to parse device driver version (%s), likely an out of tree driver",
-				ptpDevInfo.DriverVersion,
-			)
-		}
-	}
+type DeviceDriverCheck struct {
+	MinOOTVersion string
+	VersionCheck
+}
 
-	return &VersionWithErrorCheck{
+func (dc *DeviceDriverCheck) Verify() error {
+	ver := fmt.Sprintf("v%s", dc.Version)
+	if !semver.IsValid(ver) {
+		return fmt.Errorf("unable to parse device driver version (%s)", dc.Version)
+	}
+	if semver.Compare(ver, fmt.Sprintf("v%s", dc.MinOOTVersion)) < 0 {
+		return utils.NewInvalidEnvError(fmt.Errorf("unexpected version: %s < %s", dc.Version, dc.MinVersion))
+	}
+	if semver.Compare(ver, fmt.Sprintf("v%s", dc.MinVersion)) < 0 {
+		return utils.NewInvalidEnvError(
+			fmt.Errorf("unexpected version: %s < %s, likely out of tree driver", dc.Version, dc.MinVersion))
+	}
+	return nil
+}
+
+// func (dc *DeviceDriverCheck) GetData() any { //nolint:ireturn // data will vary for each validation
+// 	return dc.checkVersion
+// }
+
+func NewDeviceDriver(ptpDevInfo *devices.PTPDeviceInfo) *DeviceDriverCheck {
+	return &DeviceDriverCheck{
+		MinOOTVersion: minDriverVersion,
 		VersionCheck: VersionCheck{
 			id:           deviceDriverVersionID,
 			Version:      ptpDevInfo.DriverVersion,
 			checkVersion: ptpDevInfo.DriverVersion,
-			MinVersion:   minDriverVersion,
+			MinVersion:   minInTreeDriverVersion,
 			description:  deviceDriverVersionDescription,
 			order:        deviceDriverVersionOrdering,
 		},
-		Error: err,
 	}
 }
