@@ -170,3 +170,10 @@ func GetPTPDeviceInfo(interfaceName string, ctx clients.ContainerContext) (PTPDe
 	}
 	return devInfo, nil
 }
+
+func ClosePTPDeviceInfoFetcher(interfaceName string) {
+	fetcherInst, fetchedInstanceOk := devFetcher[interfaceName]
+	if fetchedInstanceOk {
+		fetcherInst.Close()
+	}
+}

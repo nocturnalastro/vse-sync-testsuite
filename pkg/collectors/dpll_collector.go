@@ -74,6 +74,7 @@ func (dpll *DPLLCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroup
 // CleanUp stops a running collector
 func (dpll *DPLLCollector) CleanUp() error {
 	dpll.running = false
+	devices.CloseDPLLInfoFetcher(dpll.interfaceName)
 	return nil
 }
 

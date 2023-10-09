@@ -17,6 +17,7 @@ const timeout = 10 * time.Second
 
 type Fetcher struct {
 	cmdGrp        *clients.CmdGroup
+	ocp           *expecter.OcpExpecter
 	postProcessor func(map[string]string) (map[string]any, error)
 }
 
@@ -24,6 +25,19 @@ func NewFetcher() *Fetcher {
 	return &Fetcher{
 		cmdGrp: &clients.CmdGroup{},
 	}
+}
+
+func (inst *Fetcher) Start(ctx clients.ContainerContext) error {
+	ocp, err := expecter.NewPTPDaemonDebugExpecter(ctx, timeout)
+	if err != nil {
+		return fmt.Errorf("failed create expector: %w", err)
+	}
+	inst.ocp = ocp
+	return nil
+}
+
+func (inst *Fetcher) IsRunning() bool {
+	return inst.ocp != nil
 }
 
 func TrimSpace(s string) (string, error) {
@@ -56,7 +70,7 @@ func (inst *Fetcher) AddCommand(cmdInst *clients.Cmd) {
 // Fetch executes the commands on the container passed as the ctx and
 // use the results to populate pack
 func (inst *Fetcher) Fetch(ctx clients.ContainerContext, pack any) error {
-	runResult, err := runCommands(ctx, inst.cmdGrp)
+	runResult, err := runCommands(inst.ocp, ctx, inst.cmdGrp)
 	if err != nil {
 		return err
 	}
@@ -80,11 +94,15 @@ func (inst *Fetcher) Fetch(ctx clients.ContainerContext, pack any) error {
 	return nil
 }
 
+func (inst *Fetcher) Close() {
+	inst.ocp.Close()
+	inst.ocp = nil
+}
+
 // runCommands executes the commands on the container passed as the ctx
 // and extracts the results from the stdout
-func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map[string]string, err error) { //nolint:lll // allow slightly long function definition
+func runCommands(ocp *expecter.OcpExpecter, ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map[string]string, err error) { //nolint:lll // allow slightly long function definition
 	cmd := cmdGrp.GetCommand()
-	ocp, _ := expecter.NewPTPDaemonDebugExpecter(ctx, timeout)
 	stdout, err := ocp.RunCommandAndWaitForPrompt(cmd)
 	if err != nil {
 		log.Debugf(
@@ -93,7 +111,6 @@ func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map
 		)
 		return result, fmt.Errorf("runCommands failed %w", err)
 	}
-	defer ocp.Close()
 
 	result, err = cmdGrp.ExtractResult(stdout)
 	if err != nil {

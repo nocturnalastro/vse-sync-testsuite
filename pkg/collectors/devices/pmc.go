@@ -139,10 +139,21 @@ func processPMC(result map[string]string) (map[string]any, error) { //nolint:fun
 // GetPMC returns PMCInfo
 func GetPMC(ctx clients.ContainerContext) (PMCInfo, error) {
 	gmSetting := PMCInfo{}
+	if !pmcFetcher.IsRunning() {
+		err := pmcFetcher.Start(ctx)
+		if err != nil {
+			return gmSetting, fmt.Errorf("failed to start gmSetting fetcher %w", err)
+		}
+	}
+
 	err := pmcFetcher.Fetch(ctx, &gmSetting)
 	if err != nil {
 		log.Debugf("failed to fetch gmSetting %s", err.Error())
 		return gmSetting, fmt.Errorf("failed to fetch gmSetting %w", err)
 	}
 	return gmSetting, nil
+}
+
+func ClosePMCFetcher() {
+	pmcFetcher.Close()
 }

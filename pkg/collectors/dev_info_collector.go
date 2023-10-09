@@ -127,6 +127,7 @@ func (ptpDev *DevInfoCollector) CleanUp() error {
 	ptpDev.running = false
 	ptpDev.quit <- os.Kill
 	ptpDev.wg.Wait()
+	devices.ClosePTPDeviceInfoFetcher(ptpDev.interfaceName)
 	return nil
 }
 

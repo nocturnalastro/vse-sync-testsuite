@@ -90,21 +90,36 @@ func BuildDPLLInfoFetcher(interfaceName string) error { //nolint:dupl // Further
 	return nil
 }
 
-// GetDevDPLLInfo returns the device DPLL info for an interface.
-func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (DevDPLLInfo, error) {
-	dpllInfo := DevDPLLInfo{}
+func getDevDPLLInfoFetcher(ctx clients.ContainerContext, interfaceName string) (*fetcher.Fetcher, error) {
 	fetcherInst, fetchedInstanceOk := dpllFetcher[interfaceName]
 	if !fetchedInstanceOk {
 		err := BuildDPLLInfoFetcher(interfaceName)
 		if err != nil {
-			return dpllInfo, err
+			return fetcherInst, err
 		}
 		fetcherInst, fetchedInstanceOk = dpllFetcher[interfaceName]
 		if !fetchedInstanceOk {
-			return dpllInfo, errors.New("failed to create fetcher for DPLLInfo")
+			return fetcherInst, errors.New("failed to create fetcher for DPLLInfo")
 		}
 	}
-	err := fetcherInst.Fetch(ctx, &dpllInfo)
+	if !fetcherInst.IsRunning() {
+		err := fetcherInst.Start(ctx)
+		if err != nil {
+			return fetcherInst, fmt.Errorf("failed to start fetcher for DPLLInfo: %w", err)
+		}
+	}
+	return fetcherInst, nil
+}
+
+// GetDevDPLLInfo returns the device DPLL info for an interface.
+func GetDevDPLLInfo(ctx clients.ContainerContext, interfaceName string) (DevDPLLInfo, error) {
+	dpllInfo := DevDPLLInfo{}
+	fetcherInst, err := getDevDPLLInfoFetcher(ctx, interfaceName)
+	if err != nil {
+		log.Debugf("failed to find dpllInfo fetcher %s", err.Error())
+		return dpllInfo, fmt.Errorf("failed to find dpllInfo fetcher %w", err)
+	}
+	err = fetcherInst.Fetch(ctx, &dpllInfo)
 	if err != nil {
 		log.Debugf("failed to fetch dpllInfo %s", err.Error())
 		return dpllInfo, fmt.Errorf("failed to fetch dpllInfo %w", err)
@@ -135,7 +150,10 @@ func IsDPLLFileSystemPresent(ctx clients.ContainerContext, interfaceName string)
 		"dpll_1_state":  false,
 		"dpll_1_offset": false,
 	}
-
+	err = fetcherInst.Start(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to start fetcher for check: %w", err)
+	}
 	err = fetcherInst.Fetch(ctx, &paths)
 	if err != nil {
 		return false, fmt.Errorf("failed to check DPLL FS  %w", err)
@@ -153,4 +171,11 @@ func IsDPLLFileSystemPresent(ctx clients.ContainerContext, interfaceName string)
 		}
 	}
 	return true, nil
+}
+
+func CloseDPLLInfoFetcher(interfaceName string) {
+	fetcherInst, fetchedInstanceOk := dpllFetcher[interfaceName]
+	if fetchedInstanceOk {
+		fetcherInst.Close()
+	}
 }

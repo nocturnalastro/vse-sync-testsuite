@@ -71,6 +71,7 @@ func (pmc *PMCCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 // CleanUp stops a running collector
 func (pmc *PMCCollector) CleanUp() error {
 	pmc.running = false
+	devices.ClosePMCFetcher()
 	return nil
 }
 

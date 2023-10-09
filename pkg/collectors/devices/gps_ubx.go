@@ -274,10 +274,20 @@ func processUBX(result map[string]string) (map[string]any, error) { //nolint:fun
 // GetGPSNav returns GPSNav of the host
 func GetGPSNav(ctx clients.ContainerContext) (GPSDetails, error) {
 	gpsNav := GPSDetails{}
+	if !gpsFetcher.IsRunning() {
+		err := gpsFetcher.Start(ctx)
+		if err != nil {
+			return gpsNav, fmt.Errorf("failed to start gpsNav fetcher %w", err)
+		}
+	}
 	err := gpsFetcher.Fetch(ctx, &gpsNav)
 	if err != nil {
 		log.Debugf("failed to fetch gpsNav %s", err.Error())
 		return gpsNav, fmt.Errorf("failed to fetch gpsNav %w", err)
 	}
 	return gpsNav, nil
+}
+
+func CloseGPSNavFetcher() {
+	gpsFetcher.Close()
 }

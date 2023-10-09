@@ -72,6 +72,7 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 // CleanUp stops a running collector
 func (gps *GPSCollector) CleanUp() error {
 	gps.running = false
+	devices.CloseGPSNavFetcher()
 	return nil
 }
 

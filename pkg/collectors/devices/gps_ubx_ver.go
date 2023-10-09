@@ -187,3 +187,7 @@ func GetGPSVersions(ctx clients.ContainerContext) (GPSVersions, error) {
 	}
 	return gpsVer, nil
 }
+
+func CloseGPSFetcher() {
+	gpsVerFetcher.Close()
+}
