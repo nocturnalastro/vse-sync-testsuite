@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -196,4 +197,45 @@ func (clientsholder *Clientset) ExecCommandContainerStdIn(ctx ContainerContext, 
 		return stdout, stderr, fmt.Errorf("error running remote command: %w", err)
 	}
 	return stdout, stderr, nil
+}
+
+const shellCommand = "/usr/bin/sh"
+
+func (c ContainerContext) OpenShell(tty *os.File) {
+	log.Debugf(
+		"execute command on ns=%s, pod=%s container=%s, cmd: %s",
+		c.GetNamespace(),
+		c.GetPodName(),
+		c.GetContainerName(),
+		shellCommand,
+	)
+	req := c.clientset.K8sRestClient.Post().
+		Namespace(c.GetNamespace()).
+		Resource("pods").
+		Name(c.GetPodName()).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: c.GetContainerName(),
+			Command:   []string{shellCommand},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    false,
+			TTY:       true,
+		}, scheme.ParameterCodec)
+
+	exec, err := NewSPDYExecutor(c.clientset.RestConfig, "POST", req.URL())
+	if err != nil {
+		log.Debug(err)
+		err = fmt.Errorf("error setting up remote command: %w", err)
+		// return stdout, stderr, err, quit,
+	}
+
+	go func() {
+		err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+			Stdin:  tty,
+			Stdout: tty,
+			Stderr: nil,
+			Tty:    true,
+		})
+	}()
 }

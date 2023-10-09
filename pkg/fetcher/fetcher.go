@@ -3,14 +3,17 @@
 package fetcher
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
+	expecter "github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/expector"
 )
+
+const timeout = 10 * time.Second
 
 type Fetcher struct {
 	cmdGrp        *clients.CmdGroup
@@ -80,23 +83,18 @@ func (inst *Fetcher) Fetch(ctx clients.ContainerContext, pack any) error {
 // runCommands executes the commands on the container passed as the ctx
 // and extracts the results from the stdout
 func runCommands(ctx clients.ContainerContext, cmdGrp clients.Cmder) (result map[string]string, err error) { //nolint:lll // allow slightly long function definition
-	clientset, err := clients.GetClientset()
-	if err != nil {
-		return result, fmt.Errorf("failed to get clientset %w", err)
-	}
 	cmd := cmdGrp.GetCommand()
-	command := []string{"/usr/bin/sh"}
-	var buffIn bytes.Buffer
-	buffIn.WriteString(cmd)
-
-	stdout, _, err := clientset.ExecCommandContainerStdIn(ctx, command, buffIn)
+	ocp, _ := expecter.NewPTPDaemonDebugExpecter(ctx, timeout)
+	stdout, err := ocp.RunCommandAndWaitForPrompt(cmd)
 	if err != nil {
 		log.Debugf(
 			"command in container failed unexpectedly:\n\tcontext: %v\n\tcommand: %v\n\terror: %v",
-			ctx, command, err,
+			ctx, cmd, err,
 		)
 		return result, fmt.Errorf("runCommands failed %w", err)
 	}
+	defer ocp.Close()
+
 	result, err = cmdGrp.ExtractResult(stdout)
 	if err != nil {
 		log.Debugf("extraction failed %s", err.Error())
