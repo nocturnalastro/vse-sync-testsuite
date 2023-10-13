@@ -38,6 +38,10 @@ func (gps *GPSCollector) ResetPollInterval() {
 	gps.pollInterval.reset()
 }
 
+func (gps *GPSCollector) GetName() string {
+	return GPSCollectorName
+}
+
 func (gps *GPSCollector) IsAnnouncer() bool {
 	return false
 }

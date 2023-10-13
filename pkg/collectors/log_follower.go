@@ -28,9 +28,9 @@ const (
 	lineChanLength      = 1000
 	lineDelim           = '\n'
 	streamingBufferSize = 2000
-	logPollInterval     = 2
 	logFilePermissions  = 0666
 	keepGenerations     = 5
+	logPollInterval     = 2
 )
 
 var (
@@ -89,6 +89,10 @@ func (logs *LogsCollector) ResetPollInterval() {
 
 func (logs *LogsCollector) IsAnnouncer() bool {
 	return false
+}
+
+func (logs *LogsCollector) GetName() string {
+	return LogsCollectorName
 }
 
 func (logs *LogsCollector) SetLastPoll(pollTime time.Time) {

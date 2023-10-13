@@ -5,6 +5,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,6 +15,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	filePermissions = 0666
 )
 
 var (
@@ -78,4 +83,23 @@ func RemoveTempFiles(dir string, filenames []string) {
 	}
 	// os.Remove will not remove a director if has files so its safe to call on the Dir
 	os.Remove(dir)
+}
+
+// Returns the filehandle for callback
+// if filename is empty or "-" it will output to stdout otherwise it will
+// write to a file of the given name
+func GetFileHandle(filename string) (io.WriteCloser, error) {
+	var (
+		fileHandle io.WriteCloser
+		err        error
+	)
+	if filename == "-" || filename == "" {
+		fileHandle = os.Stdout
+	} else {
+		fileHandle, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, filePermissions)
+		if err != nil {
+			return fileHandle, fmt.Errorf("failed to open file: %w", err)
+		}
+	}
+	return fileHandle, nil
 }

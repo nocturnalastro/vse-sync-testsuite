@@ -52,7 +52,7 @@ var _ = Describe("Callbacks", func() {
 
 	When("Raw FileCallback is called", func() {
 		It("should write to the file", func() {
-			callback := callbacks.NewFileCallback(mockedFile, callbacks.Raw)
+			callback := callbacks.SetupCallback(mockedFile, callbacks.Raw)
 			out := testOutputType{
 				Msg: "This is a test line",
 			}
@@ -63,7 +63,7 @@ var _ = Describe("Callbacks", func() {
 	})
 	When("JSON FileCallback is called", func() {
 		It("should write to the file", func() {
-			callback := callbacks.NewFileCallback(mockedFile, callbacks.AnalyserJSON)
+			callback := callbacks.SetupCallback(mockedFile, callbacks.AnalyserJSON)
 			out := testOutputType{
 				Msg: "This is a test line",
 			}
@@ -74,7 +74,7 @@ var _ = Describe("Callbacks", func() {
 	})
 	When("A FileCallback is cleaned up", func() {
 		It("should close the file", func() {
-			callback := callbacks.NewFileCallback(mockedFile, callbacks.Raw)
+			callback := callbacks.SetupCallback(mockedFile, callbacks.Raw)
 			err := callback.CleanUp()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(mockedFile.open).To(BeFalse())

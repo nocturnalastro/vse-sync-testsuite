@@ -97,8 +97,9 @@ func getValidations(interfaceName, kubeConfig string) []validations.Validation {
 }
 
 func reportAnalyserJSON(results []*ValidationResult) {
-	callback, err := callbacks.SetupCallback("-", callbacks.AnalyserJSON)
+	fileHandle, err := utils.GetFileHandle("-")
 	utils.IfErrorExitOrPanic(err)
+	callback := callbacks.SetupCallback(fileHandle, callbacks.AnalyserJSON)
 
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].validation.GetOrder() < results[j].validation.GetOrder()

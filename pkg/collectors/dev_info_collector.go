@@ -49,6 +49,10 @@ func (ptpDev *DevInfoCollector) ResetPollInterval() {
 	ptpDev.pollInterval.reset()
 }
 
+func (ptpDev *DevInfoCollector) GetName() string {
+	return DevInfoCollectorName
+}
+
 func (ptpDev *DevInfoCollector) IsAnnouncer() bool {
 	return true
 }

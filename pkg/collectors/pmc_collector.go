@@ -37,6 +37,10 @@ func (pmc *PMCCollector) ResetPollInterval() {
 	pmc.pollInterval.reset()
 }
 
+func (pmc *PMCCollector) GetName() string {
+	return PMCCollectorName
+}
+
 func (pmc *PMCCollector) IsAnnouncer() bool {
 	return false
 }

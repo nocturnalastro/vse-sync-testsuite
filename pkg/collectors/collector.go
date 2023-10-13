@@ -16,6 +16,7 @@ type Collector interface {
 	Poll(chan PollResult, *utils.WaitGroupCount) // Poll for collectables
 	CleanUp() error                              // Stops the collector and cleans up any internal state. It should result in a state that can be started again
 	GetPollInterval() time.Duration              // Returns the collectors polling interval
+	GetName() string
 	IsAnnouncer() bool
 	ScalePollInterval(float64)
 	ResetPollInterval()

@@ -7,11 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-)
-
-const (
-	logFilePermissions = 0666
 )
 
 type Callback interface {
@@ -69,38 +64,11 @@ func getFormattedOutput(c Callback, output OutputType, tag string) ([]byte, erro
 	}
 }
 
-// Returns the filehandle for callback
-// if filename is empty or "-" it will output to stdout otherwise it will
-// write to a file of the given name
-func GetFileHandle(filename string) (io.WriteCloser, error) {
-	var (
-		fileHandle io.WriteCloser
-		err        error
-	)
-	if filename == "-" || filename == "" {
-		fileHandle = os.Stdout
-	} else {
-		fileHandle, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, logFilePermissions)
-		if err != nil {
-			return fileHandle, fmt.Errorf("failed to open file: %w", err)
-		}
-	}
-	return fileHandle, nil
-}
-
-func NewFileCallback(fileHandle io.WriteCloser, format OutputFormat) FileCallBack {
-	return FileCallBack{fileHandle: fileHandle, format: format}
-}
-
 // SetupCallback returns a FileCallback
 // if filename is empty or "-" it will output to stdout otherwise it will
 // write to a file of the given name
-func SetupCallback(filename string, format OutputFormat) (FileCallBack, error) {
-	fileHandle, err := GetFileHandle(filename)
-	if err != nil {
-		return FileCallBack{}, err
-	}
-	return NewFileCallback(fileHandle, format), nil
+func SetupCallback(fileHandle io.WriteCloser, format OutputFormat) FileCallBack {
+	return FileCallBack{fileHandle: fileHandle, format: format}
 }
 
 type FileCallBack struct {

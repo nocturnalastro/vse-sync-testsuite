@@ -39,6 +39,10 @@ func (dpll *DPLLCollector) ResetPollInterval() {
 	dpll.pollInterval.reset()
 }
 
+func (dpll *DPLLCollector) GetName() string {
+	return DPLLCollectorName
+}
+
 func (dpll *DPLLCollector) IsAnnouncer() bool {
 	return false
 }

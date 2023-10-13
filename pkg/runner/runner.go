@@ -159,10 +159,12 @@ func (runner *CollectorRunner) poller(
 			runningPolls.Wait()
 			return
 		default:
+			pollInterval = collector.GetPollInterval()
 			log.Debug(
-				"Collector GoRoutine:",
+				"Collector GoRoutine: ",
 				collectorName,
-				lastPoll, pollInterval,
+				lastPoll,
+				pollInterval,
 				lastPoll.IsZero(),
 				time.Since(lastPoll),
 				time.Since(lastPoll) > pollInterval,
@@ -182,7 +184,7 @@ func (runner *CollectorRunner) poller(
 }
 
 // start configures all collectors to start collecting all their data keys
-func (runner *CollectorRunner) start() {
+func (runner *CollectorRunner) start(callback callbacks.Callback) {
 	for collectorName, collector := range runner.collectorInstances {
 		log.Debugf("start collector %v", collector)
 		err := collector.Start()
@@ -202,6 +204,7 @@ func (runner *CollectorRunner) start() {
 			go runner.poller(collectorName, collector, quit, &runner.runningCollectorsWG)
 		}
 	}
+	MonitorStream(os.Stdin, callback, runner.collectorInstances)
 }
 
 // cleanup calls cleanup on each collector
@@ -237,9 +240,9 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 	if useAnalyserJSON {
 		outputFormat = callbacks.AnalyserJSON
 	}
-
-	callback, err := callbacks.SetupCallback(outputFile, outputFormat)
+	outputFileHandle, err := utils.GetFileHandle(outputFile)
 	utils.IfErrorExitOrPanic(err)
+	callback := callbacks.SetupCallback(outputFileHandle, outputFormat)
 	runner.initialise(
 		callback,
 		ptpInterface,
@@ -252,7 +255,7 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 		tempDir,
 		keepDebugFiles,
 	)
-	runner.start()
+	runner.start(callback)
 
 	// Use wg count to know if any collectors are running.
 	for (runner.runningCollectorsWG.GetCount() + runner.runningAnnouncersWG.GetCount()) > 0 {
