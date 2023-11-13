@@ -59,7 +59,7 @@ func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
 	}
 
 	collector := PMCCollector{
-		baseCollector: newBaseCollectors(
+		baseCollector: newBaseCollector(
 			PMCCollectorName,
 			ctx,
 			constructor.PollInterval,

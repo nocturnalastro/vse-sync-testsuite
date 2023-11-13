@@ -169,7 +169,7 @@ func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) 
 	}
 
 	collector := DevInfoCollector{
-		baseCollector: newBaseCollectors(
+		baseCollector: newBaseCollector(
 			DevInfoCollectorName,
 			ctx,
 			constructor.DevInfoAnnouceInterval,

@@ -64,7 +64,7 @@ func NewDPLLCollector(constructor *CollectionConstructor) (Collector, error) {
 	}
 
 	collector := DPLLCollector{
-		baseCollector: newBaseCollectors(
+		baseCollector: newBaseCollector(
 			DPLLCollectorName,
 			ctx,
 			constructor.PollInterval,

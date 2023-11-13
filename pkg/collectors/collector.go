@@ -112,7 +112,7 @@ func (base *baseCollector) CleanUp() error {
 	return nil
 }
 
-func newBaseCollectors(
+func newBaseCollector(
 	name string,
 	ctx clients.ContainerContext,
 	pollInterval int,

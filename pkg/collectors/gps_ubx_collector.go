@@ -58,7 +58,7 @@ func NewGPSCollector(constructor *CollectionConstructor) (Collector, error) {
 	}
 
 	collector := GPSCollector{
-		baseCollector: newBaseCollectors(
+		baseCollector: newBaseCollector(
 			GPSCollectorName,
 			ctx,
 			constructor.PollInterval,
