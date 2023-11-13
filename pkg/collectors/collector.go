@@ -72,3 +72,59 @@ func NewLockedInterval(seconds int) *LockedInterval {
 		base:    time.Duration(seconds) * time.Second,
 	}
 }
+
+type baseCollector struct {
+	callback     callbacks.Callback
+	pollInterval *LockedInterval
+	ctx          clients.ContainerContext
+	name         string
+	isAnnouncer  bool
+	running      bool
+}
+
+func (base *baseCollector) GetPollInterval() time.Duration {
+	return base.pollInterval.interval()
+}
+
+func (base *baseCollector) ScalePollInterval(factor float64) {
+	base.pollInterval.scale(factor)
+}
+
+func (base *baseCollector) ResetPollInterval() {
+	base.pollInterval.reset()
+}
+
+func (base *baseCollector) GetName() string {
+	return base.name
+}
+
+func (base *baseCollector) IsAnnouncer() bool {
+	return base.isAnnouncer
+}
+
+func (base *baseCollector) Start() error {
+	base.running = true
+	return nil
+}
+
+func (base *baseCollector) CleanUp() error {
+	base.running = false
+	return nil
+}
+
+func newBaseCollectors(
+	name string,
+	ctx clients.ContainerContext,
+	pollInterval int,
+	isAnnouncer bool,
+	callback callbacks.Callback,
+) *baseCollector {
+	return &baseCollector{
+		name:         name,
+		pollInterval: NewLockedInterval(pollInterval),
+		ctx:          ctx,
+		isAnnouncer:  isAnnouncer,
+		running:      false,
+		callback:     callback,
+	}
+}

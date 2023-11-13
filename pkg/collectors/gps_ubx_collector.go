@@ -4,10 +4,7 @@ package collectors //nolint:dupl // new collector
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -19,37 +16,8 @@ var (
 )
 
 type GPSCollector struct {
-	callback      callbacks.Callback
-	pollInterval  *LockedInterval
-	ctx           clients.ContainerContext
+	*baseCollector
 	interfaceName string
-	running       bool
-}
-
-func (gps *GPSCollector) GetPollInterval() time.Duration {
-	return gps.pollInterval.interval()
-}
-
-func (gps *GPSCollector) ScalePollInterval(factor float64) {
-	gps.pollInterval.scale(factor)
-}
-
-func (gps *GPSCollector) ResetPollInterval() {
-	gps.pollInterval.reset()
-}
-
-func (gps *GPSCollector) GetName() string {
-	return GPSCollectorName
-}
-
-func (gps *GPSCollector) IsAnnouncer() bool {
-	return false
-}
-
-// Start sets up the collector so it is ready to be polled
-func (gps *GPSCollector) Start() error {
-	gps.running = true
-	return nil
 }
 
 func (gps *GPSCollector) poll() error {
@@ -82,12 +50,6 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 	}
 }
 
-// CleanUp stops a running collector
-func (gps *GPSCollector) CleanUp() error {
-	gps.running = false
-	return nil
-}
-
 // Returns a new GPSCollector based on values in the CollectionConstructor
 func NewGPSCollector(constructor *CollectionConstructor) (Collector, error) {
 	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
@@ -96,11 +58,14 @@ func NewGPSCollector(constructor *CollectionConstructor) (Collector, error) {
 	}
 
 	collector := GPSCollector{
+		baseCollector: newBaseCollectors(
+			GPSCollectorName,
+			ctx,
+			constructor.PollInterval,
+			false,
+			constructor.Callback,
+		),
 		interfaceName: constructor.PTPInterface,
-		ctx:           ctx,
-		running:       false,
-		callback:      constructor.Callback,
-		pollInterval:  NewLockedInterval(constructor.PollInterval),
 	}
 
 	return &collector, nil

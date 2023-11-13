@@ -11,8 +11,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -20,42 +18,19 @@ import (
 )
 
 type DevInfoCollector struct {
-	callback      callbacks.Callback
+	*baseCollector
 	devInfo       *devices.PTPDeviceInfo
 	quit          chan os.Signal
 	erroredPolls  chan PollResult
 	requiresFetch chan bool
-	pollInterval  *LockedInterval
-	ctx           clients.ContainerContext
 	interfaceName string
 	wg            sync.WaitGroup
-	running       bool
 }
 
 const (
 	DevInfoCollectorName = "DevInfo"
 	DeviceInfo           = "device-info"
 )
-
-func (ptpDev *DevInfoCollector) GetPollInterval() time.Duration {
-	return ptpDev.pollInterval.interval()
-}
-
-func (ptpDev *DevInfoCollector) ScalePollInterval(factor float64) {
-	ptpDev.pollInterval.scale(factor)
-}
-
-func (ptpDev *DevInfoCollector) ResetPollInterval() {
-	ptpDev.pollInterval.reset()
-}
-
-func (ptpDev *DevInfoCollector) GetName() string {
-	return DevInfoCollectorName
-}
-
-func (ptpDev *DevInfoCollector) IsAnnouncer() bool {
-	return true
-}
 
 // Start sets up the collector so it is ready to be polled
 func (ptpDev *DevInfoCollector) Start() error {
@@ -194,15 +169,18 @@ func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) 
 	}
 
 	collector := DevInfoCollector{
+		baseCollector: newBaseCollectors(
+			DevInfoCollectorName,
+			ctx,
+			constructor.DevInfoAnnouceInterval,
+			true,
+			constructor.Callback,
+		),
 		interfaceName: constructor.PTPInterface,
-		ctx:           ctx,
-		running:       false,
-		callback:      constructor.Callback,
 		devInfo:       &ptpDevInfo,
 		quit:          make(chan os.Signal),
 		erroredPolls:  constructor.ErroredPolls,
 		requiresFetch: make(chan bool, 1),
-		pollInterval:  NewLockedInterval(constructor.DevInfoAnnouceInterval),
 	}
 
 	return &collector, nil

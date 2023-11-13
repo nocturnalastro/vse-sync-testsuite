@@ -4,10 +4,7 @@ package collectors //nolint:dupl // new collector
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -19,37 +16,10 @@ const (
 )
 
 type PMCCollector struct {
-	callback     callbacks.Callback
-	pollInterval *LockedInterval
-	ctx          clients.ContainerContext
-	running      bool
-}
-
-func (pmc *PMCCollector) GetPollInterval() time.Duration {
-	return pmc.pollInterval.interval()
-}
-
-func (pmc *PMCCollector) ScalePollInterval(factor float64) {
-	pmc.pollInterval.scale(factor)
-}
-
-func (pmc *PMCCollector) ResetPollInterval() {
-	pmc.pollInterval.reset()
-}
-
-func (pmc *PMCCollector) GetName() string {
-	return PMCCollectorName
-}
-
-func (pmc *PMCCollector) IsAnnouncer() bool {
-	return false
+	*baseCollector
 }
 
 // Start sets up the collector so it is ready to be polled
-func (pmc *PMCCollector) Start() error {
-	pmc.running = true
-	return nil
-}
 
 func (pmc *PMCCollector) poll() error {
 	gmSetting, err := devices.GetPMC(pmc.ctx)
@@ -81,12 +51,6 @@ func (pmc *PMCCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 	}
 }
 
-// CleanUp stops a running collector
-func (pmc *PMCCollector) CleanUp() error {
-	pmc.running = false
-	return nil
-}
-
 // Returns a new PMCCollector based on values in the CollectionConstructor
 func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
 	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
@@ -95,10 +59,13 @@ func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
 	}
 
 	collector := PMCCollector{
-		ctx:          ctx,
-		running:      false,
-		callback:     constructor.Callback,
-		pollInterval: NewLockedInterval(constructor.PollInterval),
+		baseCollector: newBaseCollectors(
+			PMCCollectorName,
+			ctx,
+			constructor.PollInterval,
+			false,
+			constructor.Callback,
+		),
 	}
 
 	return &collector, nil

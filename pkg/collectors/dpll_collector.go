@@ -5,53 +5,21 @@ package collectors
 import (
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
 )
 
 type DPLLCollector struct {
-	callback      callbacks.Callback
-	pollInterval  *LockedInterval
-	ctx           clients.ContainerContext
+	*baseCollector
 	interfaceName string
-	running       bool
 }
 
 const (
 	DPLLCollectorName = "DPLL"
 	DPLLInfo          = "dpll-info"
 )
-
-func (dpll *DPLLCollector) GetPollInterval() time.Duration {
-	return dpll.pollInterval.interval()
-}
-
-func (dpll *DPLLCollector) ScalePollInterval(factor float64) {
-	dpll.pollInterval.scale(factor)
-}
-
-func (dpll *DPLLCollector) ResetPollInterval() {
-	dpll.pollInterval.reset()
-}
-
-func (dpll *DPLLCollector) GetName() string {
-	return DPLLCollectorName
-}
-
-func (dpll *DPLLCollector) IsAnnouncer() bool {
-	return false
-}
-
-// Start sets up the collector so it is ready to be polled
-func (dpll *DPLLCollector) Start() error {
-	dpll.running = true
-	return nil
-}
 
 // polls for the dpll info then passes it to the callback
 func (dpll *DPLLCollector) poll() error {
@@ -84,12 +52,6 @@ func (dpll *DPLLCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroup
 	}
 }
 
-// CleanUp stops a running collector
-func (dpll *DPLLCollector) CleanUp() error {
-	dpll.running = false
-	return nil
-}
-
 // Returns a new DPLLCollector from the CollectionConstuctor Factory
 func NewDPLLCollector(constructor *CollectionConstructor) (Collector, error) {
 	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
@@ -102,11 +64,14 @@ func NewDPLLCollector(constructor *CollectionConstructor) (Collector, error) {
 	}
 
 	collector := DPLLCollector{
+		baseCollector: newBaseCollectors(
+			DPLLCollectorName,
+			ctx,
+			constructor.PollInterval,
+			false,
+			constructor.Callback,
+		),
 		interfaceName: constructor.PTPInterface,
-		ctx:           ctx,
-		running:       false,
-		callback:      constructor.Callback,
-		pollInterval:  NewLockedInterval(constructor.PollInterval),
 	}
 
 	dpllFSExists, err := devices.IsDPLLFileSystemPresent(collector.ctx, collector.interfaceName)
