@@ -66,19 +66,21 @@ func getClusterVersion(
 	return "", errors.New("failed to find PTP Operator CSV")
 }
 
-func NewClusterVersion(client *clients.Clientset) *VersionWithErrorCheck {
+func NewClusterVersion(client *clients.Clientset, exactVersions *ExactCheckValues) *VersionWithErrorCheck {
 	version, err := getClusterVersion(
 		"config.openshift.io",
 		"v1",
 		"clusterversions",
 		client,
 	)
+
 	return &VersionWithErrorCheck{
 		VersionCheck: VersionCheck{
 			id:           clusterVersionID,
 			Version:      version,
 			checkVersion: version,
-			MinVersion:   MinClusterVersion,
+			minVersion:   MinClusterVersion,
+			exactVersion: exactVersions.ClusterVersion,
 			order:        clusterVersionOrdering,
 		},
 		Error: err,

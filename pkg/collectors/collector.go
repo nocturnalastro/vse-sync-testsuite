@@ -6,6 +6,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/validations"
 )
 
 type Collector interface {
@@ -21,6 +22,7 @@ type CollectionConstructor struct {
 	Callback               callbacks.Callback
 	Clientset              *clients.Clientset
 	ErroredPolls           chan PollResult
+	ExactVersions          *validations.ExactCheckValues
 	PTPInterface           string
 	Msg                    string
 	LogsOutputFile         string

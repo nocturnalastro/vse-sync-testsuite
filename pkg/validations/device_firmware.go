@@ -17,13 +17,14 @@ var (
 	MinFirmwareVersion = "4.20"
 )
 
-func NewDeviceFirmware(ptpDevInfo *devices.PTPDeviceInfo) *VersionCheck {
+func NewDeviceFirmware(ptpDevInfo *devices.PTPDeviceInfo, exactVersions *ExactCheckValues) *VersionCheck {
 	parts := strings.Split(ptpDevInfo.FirmwareVersion, " ")
 	return &VersionCheck{
 		id:           deviceFirmwareID,
 		Version:      ptpDevInfo.FirmwareVersion,
 		checkVersion: parts[0],
-		MinVersion:   MinFirmwareVersion,
+		minVersion:   MinFirmwareVersion,
+		exactVersion: exactVersions.DeviceFirmwareVersion,
 		description:  deviceFirmwareDescription,
 		order:        deviceFirmwareOrdering,
 	}

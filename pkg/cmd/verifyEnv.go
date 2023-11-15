@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/verify"
 )
 
@@ -50,6 +51,7 @@ var verifyEnvCmd = &cobra.Command{
 				runtimeConfig.PTPInterface,
 				runtimeConfig.KubeConfig,
 				runtimeConfig.UseAnalyserJSON,
+				&validations.ExactCheckValues{},
 			)
 		}
 	},

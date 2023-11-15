@@ -138,8 +138,8 @@ func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *CollectionConstructo
 	checkErrors := make([]error, 0)
 	checks := []validations.Validation{
 		validations.NewDeviceDetails(ptpDevInfo),
-		validations.NewDeviceDriver(ptpDevInfo),
-		validations.NewDeviceFirmware(ptpDevInfo),
+		validations.NewDeviceDriver(ptpDevInfo, constructor.ExactVersions),
+		validations.NewDeviceFirmware(ptpDevInfo, constructor.ExactVersions),
 	}
 
 	for _, check := range checks {

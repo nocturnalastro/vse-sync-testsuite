@@ -15,6 +15,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/validations"
 )
 
 const (
@@ -87,6 +88,7 @@ func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly l
 		IncludeLogTimestamps:   includeLogTimestamps,
 		TempDir:                tempDir,
 		KeepDebugFiles:         keepDebugFiles,
+		ExactVersions:          &validations.ExactCheckValues{},
 	}
 
 	registry := collectors.GetRegistry()

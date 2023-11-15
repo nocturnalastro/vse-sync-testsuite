@@ -38,23 +38,48 @@ const (
 type VersionCheck struct {
 	id           string `json:"-"`
 	Version      string `json:"version"`
+	Expected     string `json:"expected"`
 	checkVersion string `json:"-"`
-	MinVersion   string `json:"expected"`
+	minVersion   string `json:"-"`
+	exactVersion string `json:"-"`
 	description  string `json:"-"`
 	order        int    `json:"-"`
 }
 
-func (verCheck *VersionCheck) Verify() error {
+func (verCheck *VersionCheck) setExpected() {
+	if verCheck.exactVersion != "" {
+		verCheck.Expected = verCheck.exactVersion
+	} else {
+		verCheck.Expected = verCheck.minVersion
+	}
+}
+
+func (verCheck *VersionCheck) verifyMinVersion() error {
 	ver := fmt.Sprintf("v%s", strings.ReplaceAll(verCheck.checkVersion, "_", "-"))
 	if !semver.IsValid(ver) {
 		return fmt.Errorf("could not parse version %s", ver)
 	}
-	if semver.Compare(ver, fmt.Sprintf("v%s", verCheck.MinVersion)) < 0 {
+	if semver.Compare(ver, fmt.Sprintf("v%s", verCheck.minVersion)) < 0 {
 		return utils.NewInvalidEnvError(
-			fmt.Errorf("unexpected version: %s < %s", verCheck.checkVersion, verCheck.MinVersion),
+			fmt.Errorf("unexpected version: %s < %s", verCheck.checkVersion, verCheck.minVersion),
 		)
 	}
 	return nil
+}
+
+func (verCheck *VersionCheck) verifyRequiredVersion() error {
+	if verCheck.Version != verCheck.exactVersion {
+		return fmt.Errorf("unexpected version: %s != %s", verCheck.Version, verCheck.exactVersion)
+	}
+	return nil
+}
+
+func (verCheck *VersionCheck) Verify() error {
+	if verCheck.exactVersion != "" {
+		return verCheck.verifyRequiredVersion()
+	} else {
+		return verCheck.verifyMinVersion()
+	}
 }
 
 func (verCheck *VersionCheck) GetID() string {
@@ -66,6 +91,7 @@ func (verCheck *VersionCheck) GetDescription() string {
 }
 
 func (verCheck *VersionCheck) GetData() any { //nolint:ireturn // data will vary for each validation
+	verCheck.setExpected()
 	return verCheck
 }
 
@@ -110,4 +136,20 @@ func (verCheck *VersionWithErrorCheck) Verify() error {
 		return verCheck.Error
 	}
 	return verCheck.VersionCheck.Verify()
+}
+
+type ExactCheckValues struct {
+	ClusterVersion        string
+	DeviceDriverVersion   string
+	DeviceFirmwareVersion string
+	// DeviceID       string
+	// AntStatus      string
+	// GNSSDevice     string
+	GNSSFirmwareVersion string
+	GNSSModule          string
+	GNSSProtocol        string
+	// GPSFix       string
+	GPSDVersion string
+	// GMFlag string
+	OperatorVersion string
 }

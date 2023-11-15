@@ -27,30 +27,32 @@ const (
 func getDevInfoValidations(
 	clientset *clients.Clientset,
 	interfaceName string,
+	exactVersions *validations.ExactCheckValues,
 ) []validations.Validation {
 	ctx, err := contexts.GetPTPDaemonContext(clientset)
 	utils.IfErrorExitOrPanic(err)
 	devInfo, err := devices.GetPTPDeviceInfo(interfaceName, ctx)
 	utils.IfErrorExitOrPanic(err)
 	devDetails := validations.NewDeviceDetails(&devInfo)
-	devFirmware := validations.NewDeviceFirmware(&devInfo)
-	devDriver := validations.NewDeviceDriver(&devInfo)
+	devFirmware := validations.NewDeviceFirmware(&devInfo, exactVersions)
+	devDriver := validations.NewDeviceDriver(&devInfo, exactVersions)
 	return []validations.Validation{devDetails, devFirmware, devDriver}
 }
 
 func getGPSVersionValidations(
 	clientset *clients.Clientset,
+	exactVersions *validations.ExactCheckValues,
 ) []validations.Validation {
 	ctx, err := contexts.GetPTPDaemonContext(clientset)
 	utils.IfErrorExitOrPanic(err)
 	gnssVersions, err := devices.GetGPSVersions(ctx)
 	utils.IfErrorExitOrPanic(err)
 	return []validations.Validation{
-		validations.NewGNSS(&gnssVersions),
-		validations.NewGPSDVersion(&gnssVersions),
+		validations.NewGNSS(&gnssVersions, exactVersions),
+		validations.NewGPSDVersion(&gnssVersions, exactVersions),
 		validations.NewGNSDevices(&gnssVersions),
 		validations.NewGNSSModule(&gnssVersions),
-		validations.NewGNSSProtocol(&gnssVersions),
+		validations.NewGNSSProtocol(&gnssVersions, exactVersions),
 	}
 }
 
@@ -80,18 +82,21 @@ func getGPSStatusValidation(
 	}
 }
 
-func getValidations(interfaceName, kubeConfig string) []validations.Validation {
+func getValidations(
+	interfaceName, kubeConfig string,
+	exactVersions *validations.ExactCheckValues,
+) []validations.Validation {
 	checks := make([]validations.Validation, 0)
 	clientset, err := clients.GetClientset(kubeConfig)
 	utils.IfErrorExitOrPanic(err)
-	checks = append(checks, getDevInfoValidations(clientset, interfaceName)...)
-	checks = append(checks, getGPSVersionValidations(clientset)...)
+	checks = append(checks, getDevInfoValidations(clientset, interfaceName, exactVersions)...)
+	checks = append(checks, getGPSVersionValidations(clientset, exactVersions)...)
 	checks = append(checks, getGPSStatusValidation(clientset)...)
 	checks = append(
 		checks,
 		validations.NewIsGrandMaster(clientset),
-		validations.NewOperatorVersion(clientset),
-		validations.NewClusterVersion(clientset),
+		validations.NewOperatorVersion(clientset, exactVersions),
+		validations.NewClusterVersion(clientset, exactVersions),
 	)
 	return checks
 }
@@ -165,8 +170,8 @@ func report(results []*ValidationResult, useAnalyserJSON bool) {
 	}
 }
 
-func Verify(interfaceName, kubeConfig string, useAnalyserJSON bool) {
-	checks := getValidations(interfaceName, kubeConfig)
+func Verify(interfaceName, kubeConfig string, useAnalyserJSON bool, exactVersions *validations.ExactCheckValues) {
+	checks := getValidations(interfaceName, kubeConfig, exactVersions)
 
 	results := make([]*ValidationResult, 0)
 	for _, check := range checks {

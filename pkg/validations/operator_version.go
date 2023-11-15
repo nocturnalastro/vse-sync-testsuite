@@ -69,7 +69,7 @@ func getOperatorVersion(
 	return "", errors.New("failed to find PTP Operator CSV")
 }
 
-func NewOperatorVersion(client *clients.Clientset) *VersionWithErrorCheck {
+func NewOperatorVersion(client *clients.Clientset, exactVersions *ExactCheckValues) *VersionWithErrorCheck {
 	version, err := getOperatorVersion(
 		"operators.coreos.com",
 		"v1alpha1",
@@ -82,7 +82,8 @@ func NewOperatorVersion(client *clients.Clientset) *VersionWithErrorCheck {
 			id:           ptpOperatorVersionID,
 			Version:      version,
 			checkVersion: version,
-			MinVersion:   MinOperatorVersion,
+			minVersion:   MinOperatorVersion,
+			exactVersion: exactVersions.OperatorVersion,
 			description:  ptpOperatorVersionDescription,
 			order:        ptpOperatorVersionOrdering,
 		},

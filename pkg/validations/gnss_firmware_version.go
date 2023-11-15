@@ -17,13 +17,14 @@ var (
 	MinGNSSVersion = "2.20"
 )
 
-func NewGNSS(gnss *devices.GPSVersions) *VersionCheck {
+func NewGNSS(gnss *devices.GPSVersions, exactVersions *ExactCheckValues) *VersionCheck {
 	parts := strings.Split(gnss.FirmwareVersion, " ")
 	return &VersionCheck{
 		id:           gnssID,
 		Version:      gnss.FirmwareVersion,
 		checkVersion: parts[1],
-		MinVersion:   MinGNSSVersion,
+		minVersion:   MinGNSSVersion,
+		exactVersion: exactVersions.GNSSFirmwareVersion,
 		description:  gnssDescription,
 		order:        gnssVersionOrdering,
 	}

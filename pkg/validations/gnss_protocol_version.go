@@ -12,12 +12,13 @@ const (
 	MinProtoVersion      = "29.20"
 )
 
-func NewGNSSProtocol(gnss *devices.GPSVersions) *VersionCheck {
+func NewGNSSProtocol(gnss *devices.GPSVersions, exactVersions *ExactCheckValues) *VersionCheck {
 	return &VersionCheck{
 		id:           gnssProtID,
 		Version:      gnss.ProtoVersion,
 		checkVersion: gnss.ProtoVersion,
-		MinVersion:   MinProtoVersion,
+		minVersion:   MinProtoVersion,
+		exactVersion: exactVersions.GNSSProtocol,
 		description:  gnssProtIDescription,
 		order:        gnssProtOrdering,
 	}

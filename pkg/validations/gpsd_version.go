@@ -14,13 +14,14 @@ const (
 	MinGSPDVersion  = "3.25"
 )
 
-func NewGPSDVersion(gpsdVer *devices.GPSVersions) *VersionCheck {
+func NewGPSDVersion(gpsdVer *devices.GPSVersions, exactVersions *ExactCheckValues) *VersionCheck {
 	parts := strings.Split(gpsdVer.GPSDVersion, " ")
 	return &VersionCheck{
 		id:           gpsdID,
 		Version:      gpsdVer.GPSDVersion,
 		checkVersion: strings.ReplaceAll(parts[0], "~", "-"),
-		MinVersion:   MinGSPDVersion,
+		minVersion:   MinGSPDVersion,
+		exactVersion: exactVersions.GPSDVersion,
 		description:  gpsdDescription,
 		order:        gpsdVersionOrdering,
 	}
