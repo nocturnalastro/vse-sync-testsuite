@@ -79,17 +79,19 @@ var collectCmd = &cobra.Command{
 		}
 
 		collectionRunner.Run(
-			kubeConfig,
-			outputFile,
-			requestedDuration,
-			pollInterval,
-			devInfoAnnouceInterval,
-			ptpInterface,
-			useAnalyserJSON,
-			logsOutputFile,
-			includeLogTimestamps,
-			tempDir,
-			keepDebugFiles,
+			&runner.RunTimeConfig{
+				KubeConfig:             kubeConfig,
+				OutputFile:             outputFile,
+				RequestedDuration:      requestedDuration,
+				PollInterval:           pollInterval,
+				DevInfoAnnouceInterval: devInfoAnnouceInterval,
+				PtpInterface:           ptpInterface,
+				UseAnalyserJSON:        useAnalyserJSON,
+				LogsOutputFile:         logsOutputFile,
+				IncludeLogTimestamps:   includeLogTimestamps,
+				TempDir:                tempDir,
+				KeepDebugFiles:         keepDebugFiles,
+			},
 		)
 	},
 }

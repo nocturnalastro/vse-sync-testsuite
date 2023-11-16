@@ -31,19 +31,31 @@ func getQuitChannel() chan os.Signal {
 	return quit
 }
 
+type RunTimeConfig struct {
+	KubeConfig             string
+	OutputFile             string
+	PtpInterface           string
+	LogsOutputFile         string
+	TempDir                string
+	RequestedDuration      time.Duration
+	PollInterval           int
+	DevInfoAnnouceInterval int
+	UseAnalyserJSON        bool
+	IncludeLogTimestamps   bool
+	KeepDebugFiles         bool
+}
+
 type CollectorRunner struct {
-	endTime                time.Time
-	quit                   chan os.Signal
-	collectorQuitChannel   map[string]chan os.Signal
-	pollResults            chan collectors.PollResult
-	erroredPolls           chan collectors.PollResult
-	collectorInstances     map[string]collectors.Collector
-	collectorNames         []string
-	runningCollectorsWG    utils.WaitGroupCount
-	runningAnnouncersWG    utils.WaitGroupCount
-	pollInterval           int
-	devInfoAnnouceInterval int
-	onlyAnnouncers         bool
+	endTime              time.Time
+	quit                 chan os.Signal
+	collectorQuitChannel map[string]chan os.Signal
+	pollResults          chan collectors.PollResult
+	erroredPolls         chan collectors.PollResult
+	collectorInstances   map[string]collectors.Collector
+	collectorNames       []string
+	runningCollectorsWG  utils.WaitGroupCount
+	runningAnnouncersWG  utils.WaitGroupCount
+	onlyAnnouncers       bool
 }
 
 func NewCollectorRunner(selectedCollectors []string) *CollectorRunner {
@@ -60,33 +72,24 @@ func NewCollectorRunner(selectedCollectors []string) *CollectorRunner {
 
 // initialise will call theconstructor for each
 // value in collector name, it will panic if a collector name is not known.
-func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly long function
+func (runner *CollectorRunner) initialise(
 	callback callbacks.Callback,
-	ptpInterface string,
 	clientset *clients.Clientset,
-	pollInterval int,
-	requestedDuration time.Duration,
-	devInfoAnnouceInterval int,
-	logsOutputFile string,
-	includeLogTimestamps bool,
-	tempDir string,
-	keepDebugFiles bool,
+	rtConfig *RunTimeConfig,
 ) {
-	runner.pollInterval = pollInterval
-	runner.endTime = time.Now().Add(requestedDuration)
-	runner.devInfoAnnouceInterval = devInfoAnnouceInterval
+	runner.endTime = time.Now().Add(rtConfig.RequestedDuration)
 
 	constructor := &collectors.CollectionConstructor{
 		Callback:               callback,
-		PTPInterface:           ptpInterface,
+		PTPInterface:           rtConfig.PtpInterface,
 		Clientset:              clientset,
-		PollInterval:           pollInterval,
-		DevInfoAnnouceInterval: devInfoAnnouceInterval,
+		PollInterval:           rtConfig.PollInterval,
+		DevInfoAnnouceInterval: rtConfig.DevInfoAnnouceInterval,
 		ErroredPolls:           runner.erroredPolls,
-		LogsOutputFile:         logsOutputFile,
-		IncludeLogTimestamps:   includeLogTimestamps,
-		TempDir:                tempDir,
-		KeepDebugFiles:         keepDebugFiles,
+		LogsOutputFile:         rtConfig.LogsOutputFile,
+		IncludeLogTimestamps:   rtConfig.IncludeLogTimestamps,
+		TempDir:                rtConfig.TempDir,
+		KeepDebugFiles:         rtConfig.KeepDebugFiles,
 	}
 
 	registry := collectors.GetRegistry()
@@ -217,41 +220,18 @@ func (runner *CollectorRunner) cleanUpAll() {
 // It first initialises them,
 // then polls them on the correct cadence and
 // finally cleans up the collectors when exiting
-func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long function
-	kubeConfig string,
-	outputFile string,
-	requestedDuration time.Duration,
-	pollInterval int,
-	devInfoAnnouceInterval int,
-	ptpInterface string,
-	useAnalyserJSON bool,
-	logsOutputFile string,
-	includeLogTimestamps bool,
-	tempDir string,
-	keepDebugFiles bool,
-) {
-	clientset, err := clients.GetClientset(kubeConfig)
+func (runner *CollectorRunner) Run(rtConfig *RunTimeConfig) {
+	clientset, err := clients.GetClientset(rtConfig.KubeConfig)
 	utils.IfErrorExitOrPanic(err)
 
 	outputFormat := callbacks.Raw
-	if useAnalyserJSON {
+	if rtConfig.UseAnalyserJSON {
 		outputFormat = callbacks.AnalyserJSON
 	}
 
-	callback, err := callbacks.SetupCallback(outputFile, outputFormat)
+	callback, err := callbacks.SetupCallback(rtConfig.OutputFile, outputFormat)
 	utils.IfErrorExitOrPanic(err)
-	runner.initialise(
-		callback,
-		ptpInterface,
-		clientset,
-		pollInterval,
-		requestedDuration,
-		devInfoAnnouceInterval,
-		logsOutputFile,
-		includeLogTimestamps,
-		tempDir,
-		keepDebugFiles,
-	)
+	runner.initialise(callback, clientset, rtConfig)
 	runner.start()
 
 	// Use wg count to know if any collectors are running.
