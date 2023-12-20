@@ -7,9 +7,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/Netflix/go-expect"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -371,4 +375,158 @@ func NewContainerCreationExecContext(
 		hostNetwork:              hostNetwork,
 		volumes:                  volumes,
 	}
+}
+
+var anythingThenPromptRE = regexp.MustCompile(`(.+)(sh-\d.\d#\s*)`)
+
+const shellCommand = "/usr/bin/sh"
+
+type result struct {
+	stdout string
+	stderr string
+	err    error
+}
+
+type command struct {
+	cmd    string
+	result chan *result
+}
+type Shell struct {
+	expecter *expect.Console
+	errBuff  bytes.Buffer
+}
+
+type ReusedConnectionContext struct {
+	*ContainerExecContext
+	shell          Shell
+	commandChannel chan *command
+	commandQuit    chan os.Signal
+	wg             *utils.WaitGroupCount
+}
+
+func (c *ReusedConnectionContext) openShell(tty *os.File) error {
+	log.Debugf(
+		"execute command on ns=%s, pod=%s container=%s, cmd: %s",
+		c.GetNamespace(),
+		c.GetPodName(),
+		c.GetContainerName(),
+		shellCommand,
+	)
+	req := c.clientset.K8sRestClient.Post().
+		Namespace(c.GetNamespace()).
+		Resource("pods").
+		Name(c.GetPodName()).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: c.GetContainerName(),
+			Command:   []string{shellCommand},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		}, scheme.ParameterCodec)
+
+	// quit := make(chan os.Signal)
+	exec, err := NewSPDYExecutor(c.clientset.RestConfig, "POST", req.URL())
+	if err != nil {
+		log.Debug(err)
+		err = fmt.Errorf("error setting up remote command: %w", err)
+		return err
+
+	}
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+			Stdin:  tty,
+			Stdout: tty,
+			Stderr: &c.shell.errBuff,
+			Tty:    true,
+		})
+		if err != nil {
+			log.Error(err)
+		}
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		for {
+			select {
+			case <-c.commandQuit:
+				c.shell.expecter.SendLine("quit")
+				for c.wg.GetCount() == 1 {
+					time.Sleep(time.Microsecond)
+				}
+				return
+			case cmd := <-c.commandChannel:
+				c.shell.expecter.Send(cmd.cmd)
+				stdout, err := c.shell.expecter.Expect(expect.Regexp(anythingThenPromptRE))
+				stderr := c.shell.errBuff.String()
+				c.shell.errBuff.Reset()
+				cmd.result <- &result{stdout: stdout, stderr: stderr, err: err}
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (c *ReusedConnectionContext) execCommand(cmd string) (stdout, stderr string, err error) {
+	resChan := make(chan *result, 1)
+	c.commandChannel <- &command{cmd: cmd, result: resChan}
+	resp := <-resChan
+	return resp.stdout, resp.stderr, resp.err
+
+}
+
+//nolint:lll,funlen // allow slightly long function definition and allow a slightly long function
+func (c ReusedConnectionContext) ExecCommand(cmd []string) (stdout, stderr string, err error) {
+	return c.execCommand(strings.Join(cmd, " "))
+}
+
+//nolint:lll // allow slightly long function definition
+func (c ReusedConnectionContext) ExecCommandStdIn(_ []string, buffIn bytes.Buffer) (stdout, stderr string, err error) {
+	return c.execCommand(buffIn.String())
+}
+
+func (c *ReusedConnectionContext) CloseShell() {
+	c.commandQuit <- os.Kill
+	c.wg.Wait()
+}
+
+func NewReusedConnectionContext(
+	clientset *Clientset,
+	namespace, podNamePrefix, containerName string,
+) (ReusedConnectionContext, error) {
+	podName, err := clientset.FindPodNameFromPrefix(namespace, podNamePrefix)
+	if err != nil {
+		return ReusedConnectionContext{}, err
+	}
+
+	containerCtx, err := NewContainerContext(clientset, namespace, podName, containerName)
+	if err != nil {
+		return ReusedConnectionContext{}, err
+	}
+
+	expecter, err := expect.NewConsole(expect.WithDefaultTimeout(1 * time.Minute))
+	if err != nil {
+		return ReusedConnectionContext{}, err
+	}
+
+	ctx := ReusedConnectionContext{
+		ContainerExecContext: containerCtx,
+		shell: Shell{
+			expecter: expecter,
+		},
+		commandChannel: make(chan *command, 10),
+		commandQuit:    make(chan os.Signal, 1),
+	}
+	err = ctx.openShell(expecter.Tty())
+	if err != nil {
+		return ReusedConnectionContext{}, err
+	}
+
+	return ctx, nil
 }
