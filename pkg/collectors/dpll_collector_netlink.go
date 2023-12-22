@@ -15,7 +15,6 @@ import (
 
 type DPLLNetlinkCollector struct {
 	*baseCollector
-	ctx           *clients.ContainerCreationExecContext
 	interfaceName string
 	clockID       int64
 }
@@ -28,7 +27,12 @@ const (
 // Start sets up the collector so it is ready to be polled
 func (dpll *DPLLNetlinkCollector) Start() error {
 	dpll.running = true
-	err := dpll.ctx.CreatePodAndWait()
+	ctx, ok := dpll.ctx.(*clients.ContainerCreationExecContext)
+	if !ok {
+		return fmt.Errorf("Incorrect Context type")
+	}
+
+	err := ctx.CreatePodAndWait()
 	if err != nil {
 		return fmt.Errorf("dpll netlink collector failed to start pod: %w", err)
 	}
@@ -81,7 +85,11 @@ func (dpll *DPLLNetlinkCollector) Poll(resultsChan chan PollResult, wg *utils.Wa
 // CleanUp stops a running collector
 func (dpll *DPLLNetlinkCollector) CleanUp() error {
 	dpll.running = false
-	err := dpll.ctx.DeletePodAndWait()
+	ctx, ok := dpll.ctx.(*clients.ContainerCreationExecContext)
+	if !ok {
+		return fmt.Errorf("Incorrect Context type")
+	}
+	err := ctx.DeletePodAndWait()
 	if err != nil {
 		return fmt.Errorf("dpll netlink collector failed to clean up: %w", err)
 	}
@@ -100,9 +108,9 @@ func NewDPLLNetlinkCollector(constructor *CollectionConstructor) (Collector, err
 			constructor.PollInterval,
 			false,
 			constructor.Callback,
+			ctx,
 		),
 		interfaceName: constructor.PTPInterface,
-		ctx:           ctx,
 	}
 
 	return &collector, nil

@@ -5,7 +5,6 @@ package collectors
 import (
 	"fmt"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -13,7 +12,6 @@ import (
 
 type DPLLFilesystemCollector struct {
 	*baseCollector
-	ctx           clients.ExecContext
 	interfaceName string
 }
 
@@ -81,9 +79,9 @@ func NewDPLLFilesystemCollector(constructor *CollectionConstructor) (Collector, 
 			constructor.PollInterval,
 			false,
 			constructor.Callback,
+			ctx,
 		),
 		interfaceName: constructor.PTPInterface,
-		ctx:           ctx,
 	}
 	return &collector, nil
 }
