@@ -68,7 +68,7 @@ func (c *Cmd) GetCommandString() string {
 
 func (c *Cmd) GetCommand() (*Command, error) {
 	cmd := Command{
-		stdin: c.GetCommandString(),
+		Stdin: c.GetCommandString(),
 		regex: c.shellRegex,
 	}
 	return &cmd, nil
@@ -114,7 +114,7 @@ func (cgrp *CmdGroup) GetCommand() (*Command, error) {
 	lKey := cgrp.cmds[len(cgrp.cmds)-1].key
 	grpRegex, err := regexp.Compile(`(?s:(<` + fKey + `>\r*\n.*\r*\n</` + lKey + `>))`)
 	res := &Command{
-		stdin: grpCmdStr,
+		Stdin: grpCmdStr,
 		regex: grpRegex,
 	}
 	return res, err
