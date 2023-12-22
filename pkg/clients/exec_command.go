@@ -7,14 +7,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/Netflix/go-expect"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,9 +28,15 @@ const (
 	deletionTimeout = 10 * time.Minute
 )
 
+type Command struct {
+	shell string
+	stdin string
+	regex *regexp.Regexp
+}
+
 type ExecContext interface {
-	ExecCommand([]string) (string, string, error)
-	ExecCommandStdIn([]string, bytes.Buffer) (string, string, error)
+	ExecCommand(*Command) (string, string, error)
+	ExecCommandStdIn(*Command) (string, string, error)
 }
 
 var NewSPDYExecutor = remotecommand.NewSPDYExecutor
@@ -84,19 +90,19 @@ func (c *ContainerExecContext) GetContainerName() string {
 }
 
 //nolint:lll,funlen // allow slightly long function definition and function length
-func (c *ContainerExecContext) execCommand(command []string, buffInPtr *bytes.Buffer) (stdout, stderr string, err error) {
-	commandStr := command
+func (c *ContainerExecContext) execCommand(cmd *Command) (stdout, stderr string, err error) {
+	commandStr := cmd.shell
 	var buffOut bytes.Buffer
 	var buffErr bytes.Buffer
 
-	useBuffIn := buffInPtr != nil
+	useBuffIn := cmd.stdin != ""
 
-	log.Debugf(
+	logrus.Debugf(
 		"execute command on ns=%s, pod=%s container=%s, cmd: %s",
 		c.GetNamespace(),
 		c.GetPodName(),
 		c.GetContainerName(),
-		strings.Join(commandStr, " "),
+		commandStr,
 	)
 	req := c.clientset.K8sRestClient.Post().
 		Namespace(c.GetNamespace()).
@@ -105,7 +111,7 @@ func (c *ContainerExecContext) execCommand(command []string, buffInPtr *bytes.Bu
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: c.GetContainerName(),
-			Command:   command,
+			Command:   []string{shellCommand},
 			Stdin:     useBuffIn,
 			Stdout:    true,
 			Stderr:    true,
@@ -114,15 +120,17 @@ func (c *ContainerExecContext) execCommand(command []string, buffInPtr *bytes.Bu
 
 	exec, err := NewSPDYExecutor(c.clientset.RestConfig, "POST", req.URL())
 	if err != nil {
-		log.Debug(err)
+		logrus.Debug(err)
 		return stdout, stderr, fmt.Errorf("error setting up remote command: %w", err)
 	}
 
 	var streamOptions remotecommand.StreamOptions
+	var bf bytes.Buffer
+	bf.WriteString(cmd.stdin)
 
 	if useBuffIn {
 		streamOptions = remotecommand.StreamOptions{
-			Stdin:  buffInPtr,
+			Stdin:  &bf,
 			Stdout: &buffOut,
 			Stderr: &buffErr,
 		}
@@ -137,21 +145,21 @@ func (c *ContainerExecContext) execCommand(command []string, buffInPtr *bytes.Bu
 	stdout, stderr = buffOut.String(), buffErr.String()
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			log.Debugf("Pod %s was not found, likely restarted so refreshing context", c.GetPodName())
+			logrus.Debugf("Pod %s was not found, likely restarted so refreshing context", c.GetPodName())
 			refreshErr := c.refresh()
 			if refreshErr != nil {
-				log.Debug("Failed to refresh container context", refreshErr)
+				logrus.Debug("Failed to refresh container context", refreshErr)
 			}
 		}
 
-		log.Debug(err)
-		log.Debug(req.URL())
-		log.Debug("command: ", command)
+		logrus.Debug(err)
+		logrus.Debug(req.URL())
+		logrus.Debug("command: ", cmd.shell)
 		if useBuffIn {
-			log.Debug("stdin: ", buffInPtr.String())
+			logrus.Debug("stdin: ", cmd.stdin)
 		}
-		log.Debug("stderr: ", stderr)
-		log.Debug("stdout: ", stdout)
+		logrus.Debug("stderr: ", stderr)
+		logrus.Debug("stdout: ", stdout)
 		return stdout, stderr, fmt.Errorf("error running remote command: %w", err)
 	}
 	return stdout, stderr, nil
@@ -160,13 +168,13 @@ func (c *ContainerExecContext) execCommand(command []string, buffInPtr *bytes.Bu
 // ExecCommand runs command in a container and returns output buffers
 //
 //nolint:lll,funlen // allow slightly long function definition and allow a slightly long function
-func (c *ContainerExecContext) ExecCommand(command []string) (stdout, stderr string, err error) {
-	return c.execCommand(command, nil)
+func (c *ContainerExecContext) ExecCommand(cmd *Command) (stdout, stderr string, err error) {
+	return c.execCommand(cmd)
 }
 
 //nolint:lll // allow slightly long function definition
-func (c *ContainerExecContext) ExecCommandStdIn(command []string, buffIn bytes.Buffer) (stdout, stderr string, err error) {
-	return c.execCommand(command, &buffIn)
+func (c *ContainerExecContext) ExecCommandStdIn(cmd *Command) (stdout, stderr string, err error) {
+	return c.execCommand(cmd)
 }
 
 // ContainerExecContext encapsulates the context in which a command is run; the namespace, pod, and container.
@@ -377,7 +385,8 @@ func NewContainerCreationExecContext(
 	}
 }
 
-var anythingThenPromptRE = regexp.MustCompile(`(.+)(sh-\d.\d#\s*)`)
+var clockClassRE = regexp.MustCompile(`\sclockClass\s+(\d+)`)
+var promptRE = regexp.MustCompile(`(sh-\d.\d#\s*)`)
 
 const shellCommand = "/usr/bin/sh"
 
@@ -388,7 +397,7 @@ type result struct {
 }
 
 type command struct {
-	cmd    string
+	*Command
 	result chan *result
 }
 type Shell struct {
@@ -404,8 +413,9 @@ type ReusedConnectionContext struct {
 	wg             *utils.WaitGroupCount
 }
 
-func (c *ReusedConnectionContext) openShell(tty *os.File) error {
-	log.Debugf(
+//nolint:lll // allow slightly long function definition
+func (c *ReusedConnectionContext) OpenShell(tty *os.File) error {
+	logrus.Debugf(
 		"execute command on ns=%s, pod=%s container=%s, cmd: %s",
 		c.GetNamespace(),
 		c.GetPodName(),
@@ -422,17 +432,15 @@ func (c *ReusedConnectionContext) openShell(tty *os.File) error {
 			Command:   []string{shellCommand},
 			Stdin:     true,
 			Stdout:    true,
-			Stderr:    true,
+			Stderr:    false,
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
 	// quit := make(chan os.Signal)
 	exec, err := NewSPDYExecutor(c.clientset.RestConfig, "POST", req.URL())
 	if err != nil {
-		log.Debug(err)
-		err = fmt.Errorf("error setting up remote command: %w", err)
-		return err
-
+		logrus.Debug(err)
+		return fmt.Errorf("error setting up remote command: %w", err)
 	}
 
 	c.wg.Add(1)
@@ -441,12 +449,9 @@ func (c *ReusedConnectionContext) openShell(tty *os.File) error {
 		err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 			Stdin:  tty,
 			Stdout: tty,
-			Stderr: &c.shell.errBuff,
+			Stderr: nil,
 			Tty:    true,
 		})
-		if err != nil {
-			log.Error(err)
-		}
 	}()
 
 	c.wg.Add(1)
@@ -455,17 +460,19 @@ func (c *ReusedConnectionContext) openShell(tty *os.File) error {
 		for {
 			select {
 			case <-c.commandQuit:
+				logrus.Info("Quitting epector")
 				c.shell.expecter.SendLine("quit")
-				for c.wg.GetCount() == 1 {
+				for len(c.commandChannel) > 0 {
+					cmd := <-c.commandChannel
+					c.handleCommand(cmd)
+				}
+				for x := c.wg.GetCount(); x > 1; x = c.wg.GetCount() {
+					logrus.Infof("waiting for %d to finish", x)
 					time.Sleep(time.Microsecond)
 				}
 				return
 			case cmd := <-c.commandChannel:
-				c.shell.expecter.Send(cmd.cmd)
-				stdout, err := c.shell.expecter.Expect(expect.Regexp(anythingThenPromptRE))
-				stderr := c.shell.errBuff.String()
-				c.shell.errBuff.Reset()
-				cmd.result <- &result{stdout: stdout, stderr: stderr, err: err}
+				c.handleCommand(cmd)
 			}
 		}
 	}()
@@ -473,22 +480,47 @@ func (c *ReusedConnectionContext) openShell(tty *os.File) error {
 	return nil
 }
 
-func (c *ReusedConnectionContext) execCommand(cmd string) (stdout, stderr string, err error) {
-	resChan := make(chan *result, 1)
-	c.commandChannel <- &command{cmd: cmd, result: resChan}
-	resp := <-resChan
-	return resp.stdout, resp.stderr, resp.err
+func (c ReusedConnectionContext) handleCommand(cmd *command) {
+	logrus.Info("recived command")
+	n, err := c.shell.expecter.SendLine(cmd.stdin)
+	logrus.Info("write command to stdin")
+	if err != nil && n > 0 {
+		e := fmt.Errorf("sent incomplete line: '%s', encountered error '%s'", cmd.stdin[:n], err)
+		logrus.Error(e)
+	} else if err != nil {
+		e := fmt.Errorf("could not run command: '%s', encountered error '%s'", cmd.stdin, err)
+		logrus.Error(e)
+	}
+	stdout, err := c.shell.expecter.Expect(expect.Regexp(cmd.regex))
+	c.shell.expecter.Expect(expect.Regexp(promptRE))
+	logrus.Info("waiting for prompt")
+	stderr := c.shell.errBuff.String()
+	logrus.Info("getting stderr")
+	c.shell.errBuff.Reset()
+	logrus.Info("clearing butter")
+	cmd.result <- &result{stdout: stdout, stderr: stderr, err: err}
+	logrus.Info("sent result")
+}
 
+func (c ReusedConnectionContext) execCommand(cmd *Command) (stdout, stderr string, err error) {
+	logrus.Infof("attempting to run %s", cmd.stdin)
+	resChan := make(chan *result, 1)
+	logrus.Info("made resp channel")
+	c.commandChannel <- &command{Command: cmd, result: resChan}
+	logrus.Info("sent command")
+	resp := <-resChan
+	logrus.Infof("resp %v", resp)
+	return resp.stdout, resp.stderr, resp.err
 }
 
 //nolint:lll,funlen // allow slightly long function definition and allow a slightly long function
-func (c ReusedConnectionContext) ExecCommand(cmd []string) (stdout, stderr string, err error) {
-	return c.execCommand(strings.Join(cmd, " "))
+func (c ReusedConnectionContext) ExecCommand(cmd *Command) (stdout, stderr string, err error) {
+	return c.execCommand(cmd)
 }
 
 //nolint:lll // allow slightly long function definition
-func (c ReusedConnectionContext) ExecCommandStdIn(_ []string, buffIn bytes.Buffer) (stdout, stderr string, err error) {
-	return c.execCommand(buffIn.String())
+func (c ReusedConnectionContext) ExecCommandStdIn(cmd *Command) (stdout, stderr string, err error) {
+	return c.execCommand(cmd)
 }
 
 func (c *ReusedConnectionContext) CloseShell() {
@@ -510,7 +542,13 @@ func NewReusedConnectionContext(
 		return ReusedConnectionContext{}, err
 	}
 
-	expecter, err := expect.NewConsole(expect.WithDefaultTimeout(1 * time.Minute))
+	w := logrus.StandardLogger().Writer()
+	l := log.New(w, "", 0)
+
+	expecter, err := expect.NewConsole(
+		expect.WithDefaultTimeout(30*time.Second),
+		expect.WithLogger(l),
+	)
 	if err != nil {
 		return ReusedConnectionContext{}, err
 	}
@@ -522,8 +560,9 @@ func NewReusedConnectionContext(
 		},
 		commandChannel: make(chan *command, 10),
 		commandQuit:    make(chan os.Signal, 1),
+		wg:             &utils.WaitGroupCount{},
 	}
-	err = ctx.openShell(expecter.Tty())
+	err = ctx.OpenShell(expecter.Tty())
 	if err != nil {
 		return ReusedConnectionContext{}, err
 	}

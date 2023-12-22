@@ -187,6 +187,6 @@ func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) 
 	return &collector, nil
 }
 
-func init() {
-	RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, required)
-}
+// func init() {
+// 	RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, required)
+// }

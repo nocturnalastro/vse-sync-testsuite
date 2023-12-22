@@ -10,7 +10,7 @@ import (
 )
 
 type Cmder interface {
-	GetCommand() string
+	GetCommand() (*Command, error)
 	ExtractResult(string) (map[string]string, error)
 }
 
@@ -21,9 +21,15 @@ type Cmd struct {
 	cmd             string
 	outputProcessor func(string) (string, error)
 	regex           *regexp.Regexp
+	shellRegex      *regexp.Regexp
 	fullCmd         string
 }
 
+var removeCarrageReturns *regexp.Regexp
+
+func init() {
+	removeCarrageReturns = regexp.MustCompile(`\r*\n`)
+}
 func NewCmd(key, cmd string) (*Cmd, error) {
 	cmdInstance := Cmd{
 		key:    key,
@@ -39,11 +45,16 @@ func NewCmd(key, cmd string) (*Cmd, error) {
 	}
 	cmdInstance.fullCmd += fmt.Sprintf("%s;", cmdInstance.suffix)
 
-	compiledRegex, err := regexp.Compile(`(?s)<` + key + `>\n` + `(.*)` + `\n</` + key + `>`)
+	compiledValueRegex, err := regexp.Compile(`(?s)<` + key + `>\r*\n` + `(.*?)` + `\r*\n</` + key + `>`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile regex for key %s: %w", key, err)
 	}
-	cmdInstance.regex = compiledRegex
+	cmdInstance.regex = compiledValueRegex
+	compiledShellRegex, err := regexp.Compile(`(?s)(<` + key + `>\r*\n.*?\r*\n</` + key + `>)`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile sehll regex for key %s: %w", key, err)
+	}
+	cmdInstance.shellRegex = compiledShellRegex
 	return &cmdInstance, nil
 }
 
@@ -51,8 +62,16 @@ func (c *Cmd) SetOutputProcessor(f func(string) (string, error)) {
 	c.outputProcessor = f
 }
 
-func (c *Cmd) GetCommand() string {
+func (c *Cmd) GetCommandString() string {
 	return c.fullCmd
+}
+
+func (c *Cmd) GetCommand() (*Command, error) {
+	cmd := Command{
+		stdin: c.GetCommandString(),
+		regex: c.shellRegex,
+	}
+	return &cmd, nil
 }
 
 func (c *Cmd) ExtractResult(s string) (map[string]string, error) {
@@ -62,12 +81,12 @@ func (c *Cmd) ExtractResult(s string) (map[string]string, error) {
 	log.Debugf("match %#v", match)
 
 	if len(match) > 0 {
-		value := match[1]
+		value := string(removeCarrageReturns.ReplaceAllString(match[1], "\n"))
 
 		if c.outputProcessor != nil {
-			cleanValue, err := c.outputProcessor(match[1])
+			cleanValue, err := c.outputProcessor(value)
 			if err != nil {
-				return result, fmt.Errorf("failed to cleanup value %s of key %s", match[1], c.key)
+				return result, fmt.Errorf("failed to cleanup value %s of key %s", value, c.key)
 			}
 			value = cleanValue
 		}
@@ -86,12 +105,19 @@ func (cgrp *CmdGroup) AddCommand(c *Cmd) {
 	cgrp.cmds = append(cgrp.cmds, c)
 }
 
-func (cgrp *CmdGroup) GetCommand() string {
-	res := ""
+func (cgrp *CmdGroup) GetCommand() (*Command, error) {
+	grpCmdStr := ""
 	for _, c := range cgrp.cmds {
-		res += c.GetCommand()
+		grpCmdStr += c.GetCommandString()
 	}
-	return res
+	fKey := cgrp.cmds[0].key
+	lKey := cgrp.cmds[len(cgrp.cmds)-1].key
+	grpRegex, err := regexp.Compile(`(?s:(<` + fKey + `>\r*\n.*\r*\n</` + lKey + `>))`)
+	res := &Command{
+		stdin: grpCmdStr,
+		regex: grpRegex,
+	}
+	return res, err
 }
 
 func (cgrp *CmdGroup) ExtractResult(s string) (map[string]string, error) {
