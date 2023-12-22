@@ -51,6 +51,15 @@ func (pmc *PMCCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 	}
 }
 
+func (pmc *PMCCollector) CleanUp() error {
+	pmc.baseCollector.CleanUp()
+	c, ok := pmc.ctx.(*clients.ReusedConnectionContext)
+	if ok {
+		c.CloseShell()
+	}
+	return nil
+}
+
 // Returns a new PMCCollector based on values in the CollectionConstructor
 func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
 	ctx, err := contexts.GetPTPDaemonContextReusedConnection(constructor.Clientset)
