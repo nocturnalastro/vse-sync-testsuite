@@ -25,11 +25,8 @@ const (
 
 //nolint:ireturn // this needs to be an interface
 func getDevInfoValidations(
-	clientset *clients.Clientset,
-	interfaceName string,
+	ctx clients.ExecContext, interfaceName string,
 ) []validations.Validation {
-	ctx, err := contexts.GetPTPDaemonContext(clientset)
-	utils.IfErrorExitOrPanic(err)
 	devInfo, err := devices.GetPTPDeviceInfo(interfaceName, ctx)
 	utils.IfErrorExitOrPanic(err)
 	devDetails := validations.NewDeviceDetails(&devInfo)
@@ -39,10 +36,8 @@ func getDevInfoValidations(
 }
 
 func getGPSVersionValidations(
-	clientset *clients.Clientset,
+	ctx clients.ExecContext,
 ) []validations.Validation {
-	ctx, err := contexts.GetPTPDaemonContext(clientset)
-	utils.IfErrorExitOrPanic(err)
 	gnssVersions, err := devices.GetGPSVersions(ctx)
 	utils.IfErrorExitOrPanic(err)
 	return []validations.Validation{
@@ -55,14 +50,12 @@ func getGPSVersionValidations(
 }
 
 func getGPSStatusValidation(
-	clientset *clients.Clientset,
+	ctx clients.ExecContext,
 ) []validations.Validation {
-	ctx, err := contexts.GetPTPDaemonContext(clientset)
-	utils.IfErrorExitOrPanic(err)
-
 	// If we need to do this for more validations then consider a generic
 	var antCheck *validations.GNSSAntStatus
 	var gpsDetails devices.GPSDetails
+	var err error
 	for i := 0; i < antPowerRetries; i++ {
 		gpsDetails, err = devices.GetGPSNav(ctx)
 		if err != nil {
@@ -84,9 +77,11 @@ func getValidations(interfaceName, kubeConfig string) []validations.Validation {
 	checks := make([]validations.Validation, 0)
 	clientset, err := clients.GetClientset(kubeConfig)
 	utils.IfErrorExitOrPanic(err)
-	checks = append(checks, getDevInfoValidations(clientset, interfaceName)...)
-	checks = append(checks, getGPSVersionValidations(clientset)...)
-	checks = append(checks, getGPSStatusValidation(clientset)...)
+	ctx, err := contexts.GetPTPDaemonContext(clientset)
+	utils.IfErrorExitOrPanic(err)
+	checks = append(checks, getDevInfoValidations(ctx, interfaceName)...)
+	checks = append(checks, getGPSVersionValidations(ctx)...)
+	checks = append(checks, getGPSStatusValidation(ctx)...)
 	checks = append(
 		checks,
 		validations.NewIsGrandMaster(clientset),

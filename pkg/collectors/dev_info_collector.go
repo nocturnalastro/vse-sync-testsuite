@@ -11,7 +11,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -20,7 +19,6 @@ import (
 
 type DevInfoCollector struct {
 	*baseCollector
-	ctx           clients.ExecContext
 	devInfo       *devices.PTPDeviceInfo
 	quit          chan os.Signal
 	erroredPolls  chan PollResult
@@ -151,7 +149,7 @@ func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *CollectionConstructo
 // Returns a new DevInfoCollector from the CollectionConstuctor Factory
 func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) {
 	// Build DPPInfoFetcher ahead of time call to GetPTPDeviceInfo will build the other
-	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
+	ctx, err := contexts.GetPTPDaemonContextReusedConnection(constructor.Clientset)
 	if err != nil {
 		return &DevInfoCollector{}, fmt.Errorf("failed to create DevInfoCollector: %w", err)
 	}
@@ -175,8 +173,8 @@ func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) 
 			constructor.DevInfoAnnouceInterval,
 			true,
 			constructor.Callback,
+			ctx,
 		),
-		ctx:           ctx,
 		interfaceName: constructor.PTPInterface,
 		devInfo:       &ptpDevInfo,
 		quit:          make(chan os.Signal),
@@ -187,6 +185,6 @@ func NewDevInfoCollector(constructor *CollectionConstructor) (Collector, error) 
 	return &collector, nil
 }
 
-// func init() {
-// 	RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, required)
-// }
+func init() {
+	RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, required)
+}

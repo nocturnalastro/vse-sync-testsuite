@@ -43,6 +43,7 @@ type baseCollector struct {
 	isAnnouncer  bool
 	running      bool
 	pollInterval time.Duration
+	ctx          clients.ExecContext
 }
 
 func (base *baseCollector) GetPollInterval() time.Duration {
@@ -54,12 +55,17 @@ func (base *baseCollector) IsAnnouncer() bool {
 }
 
 func (base *baseCollector) Start() error {
-	base.running = true
 	return nil
 }
 
 func (base *baseCollector) CleanUp() error {
-	base.running = false
+	base.running = true
+	if base.ctx != nil {
+		c, ok := base.ctx.(*clients.ReusedConnectionContext)
+		if ok {
+			c.CloseShell()
+		}
+	}
 	return nil
 }
 
@@ -67,11 +73,13 @@ func newBaseCollector(
 	pollInterval int,
 	isAnnouncer bool,
 	callback callbacks.Callback,
+	ctx clients.ExecContext,
 ) *baseCollector {
 	return &baseCollector{
 		callback:     callback,
 		isAnnouncer:  isAnnouncer,
 		running:      false,
 		pollInterval: time.Duration(pollInterval) * time.Second,
+		ctx:          ctx,
 	}
 }

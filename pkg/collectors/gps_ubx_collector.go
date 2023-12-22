@@ -5,7 +5,6 @@ package collectors //nolint:dupl // new collector
 import (
 	"fmt"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -18,7 +17,6 @@ var (
 
 type GPSCollector struct {
 	*baseCollector
-	ctx           clients.ExecContext
 	interfaceName string
 }
 
@@ -54,7 +52,7 @@ func (gps *GPSCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 
 // Returns a new GPSCollector based on values in the CollectionConstructor
 func NewGPSCollector(constructor *CollectionConstructor) (Collector, error) {
-	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
+	ctx, err := contexts.GetPTPDaemonContextReusedConnection(constructor.Clientset)
 	if err != nil {
 		return &GPSCollector{}, fmt.Errorf("failed to create DPLLCollector: %w", err)
 	}
@@ -64,8 +62,8 @@ func NewGPSCollector(constructor *CollectionConstructor) (Collector, error) {
 			constructor.PollInterval,
 			false,
 			constructor.Callback,
+			ctx,
 		),
-		ctx:           ctx,
 		interfaceName: constructor.PTPInterface,
 	}
 
