@@ -59,14 +59,16 @@ var _ = Describe("CmdGrp", func() {
 			Expect(err).ToNot(HaveOccurred())
 			cmdGrp := &clients.CmdGroup{}
 			cmdGrp.AddCommand(cmd)
-			cmdString := cmdGrp.GetCommand()
-			Expect(cmdString).To(Equal(cmd.GetCommand()))
+			command, err := cmdGrp.GetCommand()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(command.Stdin).To(Equal(cmd.GetCommandString()))
 
 			cmd2, err := clients.NewCmd("TestKey2", "This is another test goodbye.")
 			Expect(err).ToNot(HaveOccurred())
 			cmdGrp.AddCommand(cmd2)
-			cmdString2 := cmdGrp.GetCommand()
-			Expect(cmdString2).To(Equal(cmd.GetCommand() + cmd2.GetCommand()))
+			command2, err := cmdGrp.GetCommand()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(command2.Stdin).To(Equal(cmd.GetCommandString() + cmd2.GetCommandString()))
 		})
 	})
 	When("passed a valid result", func() {

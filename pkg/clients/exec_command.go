@@ -29,8 +29,8 @@ const (
 )
 
 type Command struct {
-	shell string
-	stdin string
+	Shell string
+	Stdin string
 	regex *regexp.Regexp
 }
 
@@ -91,11 +91,11 @@ func (c *ContainerExecContext) GetContainerName() string {
 
 //nolint:lll,funlen // allow slightly long function definition and function length
 func (c *ContainerExecContext) execCommand(cmd *Command) (stdout, stderr string, err error) {
-	commandStr := cmd.shell
+	commandStr := cmd.Shell
 	var buffOut bytes.Buffer
 	var buffErr bytes.Buffer
 
-	useBuffIn := cmd.stdin != ""
+	useBuffIn := cmd.Stdin != ""
 
 	logrus.Debugf(
 		"execute command on ns=%s, pod=%s container=%s, cmd: %s",
@@ -126,7 +126,7 @@ func (c *ContainerExecContext) execCommand(cmd *Command) (stdout, stderr string,
 
 	var streamOptions remotecommand.StreamOptions
 	var bf bytes.Buffer
-	bf.WriteString(cmd.stdin)
+	bf.WriteString(cmd.Stdin)
 
 	if useBuffIn {
 		streamOptions = remotecommand.StreamOptions{
@@ -154,9 +154,9 @@ func (c *ContainerExecContext) execCommand(cmd *Command) (stdout, stderr string,
 
 		logrus.Debug(err)
 		logrus.Debug(req.URL())
-		logrus.Debug("command: ", cmd.shell)
+		logrus.Debug("command: ", cmd.Shell)
 		if useBuffIn {
-			logrus.Debug("stdin: ", cmd.stdin)
+			logrus.Debug("stdin: ", cmd.Stdin)
 		}
 		logrus.Debug("stderr: ", stderr)
 		logrus.Debug("stdout: ", stdout)
@@ -482,13 +482,13 @@ func (c *ReusedConnectionContext) OpenShell(tty *os.File) error {
 
 func (c ReusedConnectionContext) handleCommand(cmd *command) {
 	logrus.Info("recived command")
-	n, err := c.shell.expecter.SendLine(cmd.stdin)
+	n, err := c.shell.expecter.SendLine(cmd.Stdin)
 	logrus.Info("write command to stdin")
 	if err != nil && n > 0 {
-		e := fmt.Errorf("sent incomplete line: '%s', encountered error '%s'", cmd.stdin[:n], err)
+		e := fmt.Errorf("sent incomplete line: '%s', encountered error '%s'", cmd.Stdin[:n], err)
 		logrus.Error(e)
 	} else if err != nil {
-		e := fmt.Errorf("could not run command: '%s', encountered error '%s'", cmd.stdin, err)
+		e := fmt.Errorf("could not run command: '%s', encountered error '%s'", cmd.Stdin, err)
 		logrus.Error(e)
 	}
 	stdout, err := c.shell.expecter.Expect(expect.Regexp(cmd.regex))
@@ -503,7 +503,7 @@ func (c ReusedConnectionContext) handleCommand(cmd *command) {
 }
 
 func (c ReusedConnectionContext) execCommand(cmd *Command) (stdout, stderr string, err error) {
-	logrus.Infof("attempting to run %s", cmd.stdin)
+	logrus.Infof("attempting to run %s", cmd.Stdin)
 	resChan := make(chan *result, 1)
 	logrus.Info("made resp channel")
 	c.commandChannel <- &command{Command: cmd, result: resChan}
