@@ -55,10 +55,22 @@ var collectCmd = &cobra.Command{
 		utils.IfErrorExitOrPanic(err)
 
 		for _, c := range collectorNames {
-			if (c == collectors.LogsCollectorName || c == runner.All) && logsOutputFile == "" {
-				utils.IfErrorExitOrPanic(utils.NewMissingInputError(
-					errors.New("if Logs collector is selected you must also provide a log output file")),
-				)
+			if c == collectors.LogsCollectorName || c == runner.All {
+				if logsOutputFile == "" {
+					utils.IfErrorExitOrPanic(utils.NewMissingInputError(
+						errors.New("if Logs collector is selected you must also provide a log output file")),
+					)
+				} else if strings.Contains(logsOutputFile, "~") {
+					usr, err := user.Current()
+					if err != nil {
+						log.Fatal("Failed to fetch current user so could not resolve tempdir")
+					}
+					if logsOutputFile == "~" {
+						logsOutputFile = usr.HomeDir
+					} else if strings.HasPrefix(logsOutputFile, "~/") {
+						logsOutputFile = filepath.Join(usr.HomeDir, logsOutputFile[2:])
+					}
+				}
 			}
 		}
 

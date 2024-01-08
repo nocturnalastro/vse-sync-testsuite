@@ -73,8 +73,10 @@ func (lt *GenerationalLockedTime) Generation() uint32 {
 func (lt *GenerationalLockedTime) Update(update time.Time) {
 	lt.lock.Lock()
 	defer lt.lock.Unlock()
-	lt.time = update
-	lt.generation += 1
+	if update.Sub(lt.time) > 0 {
+		lt.time = update
+		lt.generation += 1
+	}
 }
 
 type LineSlice struct {
@@ -220,6 +222,9 @@ func (gens *Generations) FlushAll() *LineSlice {
 	gensToFlush := make([][]*LineSlice, 0)
 	for _, value := range gens.Store {
 		gensToFlush = append(gensToFlush, value)
+	}
+	if len(gensToFlush) == 0 {
+		return &LineSlice{}
 	}
 	result, lastSlice := gens.flush(gensToFlush)
 	return MakeSliceFromLines(MakeNewCombinedSlice(result.Lines, lastSlice.Lines), lastSlice.Generation)

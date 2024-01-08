@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	startTimeout    = 5 * time.Second
+	startTimeout    = 2 * time.Minute
 	deletionTimeout = 10 * time.Minute
 )
 
