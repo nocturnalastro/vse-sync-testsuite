@@ -5,7 +5,6 @@ package collectors //nolint:dupl // new collector
 import (
 	"fmt"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/pkg/utils"
@@ -18,7 +17,6 @@ const (
 
 type PMCCollector struct {
 	*baseCollector
-	ctx clients.ExecContext
 }
 
 func (pmc *PMCCollector) poll() error {
@@ -53,7 +51,7 @@ func (pmc *PMCCollector) Poll(resultsChan chan PollResult, wg *utils.WaitGroupCo
 
 // Returns a new PMCCollector based on values in the CollectionConstructor
 func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
-	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
+	ctx, err := contexts.GetPTPDaemonContextReusedConnection(constructor.Clientset)
 	if err != nil {
 		return &PMCCollector{}, fmt.Errorf("failed to create PMCCollector: %w", err)
 	}
@@ -63,8 +61,8 @@ func NewPMCCollector(constructor *CollectionConstructor) (Collector, error) {
 			constructor.PollInterval,
 			false,
 			constructor.Callback,
+			ctx,
 		),
-		ctx: ctx,
 	}
 
 	return &collector, nil

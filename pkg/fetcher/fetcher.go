@@ -3,7 +3,6 @@
 package fetcher
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -82,16 +81,16 @@ func (inst *Fetcher) Fetch(ctx clients.ExecContext, pack any) error {
 // runCommands executes the commands on the container passed as the ctx
 // and extracts the results from the stdout
 func runCommands(ctx clients.ExecContext, cmdGrp clients.Cmder) (result map[string]string, err error) { //nolint:lll // allow slightly long function definition
-	cmd := cmdGrp.GetCommand()
-	command := []string{"/usr/bin/sh"}
-	var buffIn bytes.Buffer
-	buffIn.WriteString(cmd)
-
-	stdout, _, err := ctx.ExecCommandStdIn(command, buffIn)
+	cmd, err := cmdGrp.GetCommand()
+	if err != nil {
+		log.Debugf("failed to create command instance: %s", err.Error())
+		return result, fmt.Errorf("runCommands failed to create command instance %w", err)
+	}
+	stdout, _, err := ctx.ExecCommandStdIn(cmd)
 	if err != nil {
 		log.Debugf(
 			"command in container failed unexpectedly:\n\tcontext: %v\n\tcommand: %v\n\terror: %v",
-			ctx, command, err,
+			ctx, cmd, err,
 		)
 		return result, fmt.Errorf("runCommands failed %w", err)
 	}

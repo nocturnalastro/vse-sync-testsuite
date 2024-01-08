@@ -28,6 +28,14 @@ func GetPTPDaemonContext(clientset *clients.Clientset) (clients.ExecContext, err
 	return ctx, nil
 }
 
+func GetPTPDaemonContextReusedConnection(clientset *clients.Clientset) (clients.ExecContext, error) {
+	ctx, err := clients.NewReusedConnectionContext(clientset, PTPNamespace, PTPPodNamePrefix, PTPContainer)
+	if err != nil {
+		return ctx, fmt.Errorf("could not create container context %w", err)
+	}
+	return ctx, nil
+}
+
 func GetNetlinkContext(clientset *clients.Clientset) (*clients.ContainerCreationExecContext, error) {
 	hpt := corev1.HostPathDirectory
 	ctx := clients.NewContainerCreationExecContext(
