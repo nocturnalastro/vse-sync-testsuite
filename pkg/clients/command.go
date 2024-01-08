@@ -81,7 +81,7 @@ func (c *Cmd) ExtractResult(s string) (map[string]string, error) {
 	log.Debugf("match %#v", match)
 
 	if len(match) > 0 {
-		value := string(removeCarrageReturns.ReplaceAllString(match[1], "\n"))
+		value := removeCarrageReturns.ReplaceAllString(match[1], "\n")
 
 		if c.outputProcessor != nil {
 			cleanValue, err := c.outputProcessor(value)
@@ -113,11 +113,14 @@ func (cgrp *CmdGroup) GetCommand() (*Command, error) {
 	fKey := cgrp.cmds[0].key
 	lKey := cgrp.cmds[len(cgrp.cmds)-1].key
 	grpRegex, err := regexp.Compile(`(?s:(<` + fKey + `>\r*\n.*\r*\n</` + lKey + `>))`)
+	if err != nil {
+		return &Command{}, fmt.Errorf("failed to compile regex for command group %w", err)
+	}
 	res := &Command{
 		Stdin: grpCmdStr,
 		regex: grpRegex,
 	}
-	return res, err
+	return res, nil
 }
 
 func (cgrp *CmdGroup) ExtractResult(s string) (map[string]string, error) {

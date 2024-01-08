@@ -40,10 +40,10 @@ type PollResult struct {
 
 type baseCollector struct {
 	callback     callbacks.Callback
+	ctx          clients.ExecContext
+	pollInterval time.Duration
 	isAnnouncer  bool
 	running      bool
-	pollInterval time.Duration
-	ctx          clients.ExecContext
 }
 
 func (base *baseCollector) GetPollInterval() time.Duration {

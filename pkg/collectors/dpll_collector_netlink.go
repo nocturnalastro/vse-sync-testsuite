@@ -29,7 +29,7 @@ func (dpll *DPLLNetlinkCollector) Start() error {
 	dpll.running = true
 	ctx, ok := dpll.ctx.(*clients.ContainerCreationExecContext)
 	if !ok {
-		return fmt.Errorf("Incorrect Context type")
+		return fmt.Errorf("incorrect Context type")
 	}
 
 	err := ctx.CreatePodAndWait()
@@ -87,7 +87,7 @@ func (dpll *DPLLNetlinkCollector) CleanUp() error {
 	dpll.running = false
 	ctx, ok := dpll.ctx.(*clients.ContainerCreationExecContext)
 	if !ok {
-		return fmt.Errorf("Incorrect Context type")
+		return fmt.Errorf("incorrect Context type")
 	}
 	err := ctx.DeletePodAndWait()
 	if err != nil {
