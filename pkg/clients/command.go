@@ -25,11 +25,8 @@ type Cmd struct {
 	fullCmd         string
 }
 
-var removeCarrageReturns *regexp.Regexp
+var removeCarrageReturns *regexp.Regexp = regexp.MustCompile(`\r*\n`)
 
-func init() {
-	removeCarrageReturns = regexp.MustCompile(`\r*\n`)
-}
 func NewCmd(key, cmd string) (*Cmd, error) {
 	cmdInstance := Cmd{
 		key:    key,
