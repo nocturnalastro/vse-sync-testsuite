@@ -244,6 +244,11 @@ func (gens *Generations) flush(generations [][]*LineSlice) (*LineSlice, *LineSli
 }
 
 func MakeSliceFromLines(lines []*ProcessedLine, generation uint32) *LineSlice {
+	if len(lines) == 0 {
+		return &LineSlice{
+			Generation: generation,
+		}
+	}
 	return &LineSlice{
 		Lines:      lines,
 		start:      lines[0].Timestamp,
