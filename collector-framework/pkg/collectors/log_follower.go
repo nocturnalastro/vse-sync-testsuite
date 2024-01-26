@@ -19,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/loglines"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 )
@@ -327,17 +326,4 @@ func NewLogsCollector(constructor *CollectionConstructor, ctx *clients.Container
 		},
 	}
 	return &collector, nil
-}
-
-func NewPTPLogsCollector(constructor *CollectionConstructor) (Collector, error) {
-	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
-	if err != nil {
-		return &LogsCollector{}, fmt.Errorf("failed to create DPLLCollector: %w", err)
-	}
-	return NewLogsCollector(constructor, ctx)
-}
-
-func init() {
-	// Make log opt in as in may lose some data.
-	RegisterCollector(LogsCollectorName, NewPTPLogsCollector, Optional)
 }
