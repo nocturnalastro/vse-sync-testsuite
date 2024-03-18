@@ -10,6 +10,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
 const (
@@ -84,5 +85,15 @@ func NewPMCCollector(constructor *collectorsBase.CollectionConstructor) (collect
 }
 
 func init() {
-	collectorsBase.RegisterCollector(PMCCollectorName, NewPMCCollector, collectorsBase.Optional, collectorsBase.RunOnOCP)
+	collectorsBase.RegisterCollector(
+		PMCCollectorName,
+		NewPMCCollector,
+		collectorsBase.Optional,
+		collectorsBase.RunOnOCP,
+		[]string{
+			validations.DeviceDetailsID,
+			validations.DeviceDriverVersionID,
+			validations.DeviceFirmwareID,
+		},
+	)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
 var (
@@ -75,5 +76,19 @@ func NewGPSCollector(constructor *collectorsBase.CollectionConstructor) (collect
 }
 
 func init() {
-	collectorsBase.RegisterCollector(GPSCollectorName, NewGPSCollector, collectorsBase.Optional, collectorsBase.RunOnAll)
+	collectorsBase.RegisterCollector(
+		GPSCollectorName,
+		NewGPSCollector,
+		collectorsBase.Optional,
+		collectorsBase.RunOnAll,
+		[]string{
+			validations.GPSDID,
+			validations.GNSSStatusID,
+			validations.GNSSProtID,
+			validations.ExpectedModuleName,
+			validations.GNSSFirmwareID,
+			validations.HadGNSSDevices,
+			validations.GNSSAntStatusID,
+		},
+	)
 }

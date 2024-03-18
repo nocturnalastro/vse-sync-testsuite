@@ -4,13 +4,16 @@ package validations
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations/datafetcher"
 )
 
 const (
-	gnssStatusID          = TGMSyncEnvPath + "/gnss/gpsfix-valid/wpc/"
+	GNSSStatusID          = TGMSyncEnvPath + "/gnss/gpsfix-valid/wpc/"
 	gnssStatusDescription = "GNSS Module receiving data"
 )
 
@@ -26,7 +29,7 @@ func (gnss *GNSSNavStatus) Verify() error {
 }
 
 func (gnss *GNSSNavStatus) GetID() string {
-	return gnssStatusID
+	return GNSSStatusID
 }
 
 func (gnss *GNSSNavStatus) GetDescription() string {
@@ -41,6 +44,15 @@ func (gnss *GNSSNavStatus) GetOrder() int {
 	return gnssReceivingDataOrdering
 }
 
-func NewGNSSNavStatus(gpsDatails *devices.GPSDetails) *GNSSNavStatus {
-	return &GNSSNavStatus{Status: &gpsDatails.NavStatus}
+func NewGNSSNavStatus(args map[string]any) (validationsBase.Validation, error) {
+	rawGPSVer, ok := args[datafetcher.GPSNavFetcher]
+	if !ok {
+		return nil, fmt.Errorf("gps versions not set in args")
+	}
+
+	gpsDatails, ok := rawGPSVer.(*devices.GPSDetails)
+	if !ok {
+		return nil, fmt.Errorf("could not type cast gps versions")
+	}
+	return &GNSSNavStatus{Status: &gpsDatails.NavStatus}, nil
 }

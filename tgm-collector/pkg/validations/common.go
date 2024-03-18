@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 )
 
@@ -110,4 +111,12 @@ func (verCheck *VersionWithErrorCheck) Verify() error {
 		return verCheck.Error
 	}
 	return verCheck.VersionCheck.Verify()
+}
+
+func GeneralValidations() []string {
+	general := []string{ConfiguredForGrandMaster}
+	if clients.GetRuntimeTarget() == clients.TargetOCP {
+		general = append(general, ClusterVersionID, PTPOperatorVersionID)
+	}
+	return general
 }

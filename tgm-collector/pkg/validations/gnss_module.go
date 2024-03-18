@@ -6,11 +6,13 @@ import (
 	"fmt"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations/datafetcher"
 )
 
 const (
-	expectedModuleName             = "ZED-F9T"
+	ExpectedModuleName             = "ZED-F9T"
 	gnssModuleIsCorrect            = TGMEnvModelPath + "/gnss/"
 	gnssModuleIsCorrectDescription = "GNSS module is valid"
 )
@@ -20,9 +22,9 @@ type GNSSModule struct {
 }
 
 func (gnssModule *GNSSModule) Verify() error {
-	if gnssModule.Module != expectedModuleName {
+	if gnssModule.Module != ExpectedModuleName {
 		return utils.NewInvalidEnvError(
-			fmt.Errorf("reported gnss module is not %s", expectedModuleName),
+			fmt.Errorf("reported gnss module is not %s", ExpectedModuleName),
 		)
 	}
 	return nil
@@ -44,6 +46,19 @@ func (gnssModule *GNSSModule) GetOrder() int {
 	return gnssModuleOrdering
 }
 
-func NewGNSSModule(gpsdVer *devices.GPSVersions) *GNSSModule {
-	return &GNSSModule{Module: gpsdVer.Module}
+func NewGNSSModule(args map[string]any) (validationsBase.Validation, error) {
+	rawGPSVer, ok := args[datafetcher.GPSVersionFetcher]
+	if !ok {
+		return nil, fmt.Errorf("gps versions not set in args")
+	}
+
+	gpsdVer, ok := rawGPSVer.(*devices.GPSVersions)
+	if !ok {
+		return nil, fmt.Errorf("could not type cast gps versions")
+	}
+	return &GNSSModule{Module: gpsdVer.Module}, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(gnssModuleIsCorrect, NewGNSSModule, []string{datafetcher.GPSVersionFetcher})
 }

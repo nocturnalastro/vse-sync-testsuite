@@ -4,13 +4,16 @@ package validations
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations/datafetcher"
 )
 
 const (
-	hadGNSSDevices            = TGMSyncEnvPath + "/gnss/device-detected/wpc/"
+	HadGNSSDevices            = TGMSyncEnvPath + "/gnss/device-detected/wpc/"
 	hadGNSSDevicesDescription = "Has GNSS Devices"
 )
 
@@ -26,7 +29,7 @@ func (gnssDevices *GNSDevices) Verify() error {
 }
 
 func (gnssDevices *GNSDevices) GetID() string {
-	return hadGNSSDevices
+	return HadGNSSDevices
 }
 func (gnssDevices *GNSDevices) GetDescription() string {
 	return hadGNSSDevicesDescription
@@ -40,6 +43,18 @@ func (gnssDevices *GNSDevices) GetOrder() int {
 	return hasGNSSDevicesOrdering
 }
 
-func NewGNSDevices(gpsdVer *devices.GPSVersions) *GNSDevices {
-	return &GNSDevices{Paths: gpsdVer.GNSSDevices}
+func NewGNSDevices(args map[string]any) (validationsBase.Validation, error) {
+	rawGPSVer, ok := args[datafetcher.GPSVersionFetcher]
+	if !ok {
+		return nil, fmt.Errorf("dev info not set in args")
+	}
+	gpsdVer, ok := rawGPSVer.(*devices.GPSVersions)
+	if !ok {
+		return nil, fmt.Errorf("cant typecast gps version")
+	}
+	return &GNSDevices{Paths: gpsdVer.GNSSDevices}, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(HadGNSSDevices, NewGNSDevices, []string{datafetcher.GPSVersionFetcher})
 }

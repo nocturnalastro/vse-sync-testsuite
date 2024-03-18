@@ -6,11 +6,13 @@ import (
 	"fmt"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations/datafetcher"
 )
 
 const (
-	deviceDetailsID          = TGMEnvModelPath + "/nic/"
+	DeviceDetailsID          = TGMEnvModelPath + "/nic/"
 	deviceDetailsDescription = "Card is valid NIC"
 )
 
@@ -33,7 +35,7 @@ func (dev *DeviceDetails) Verify() error {
 }
 
 func (dev *DeviceDetails) GetID() string {
-	return deviceDetailsID
+	return DeviceDetailsID
 }
 
 func (dev *DeviceDetails) GetDescription() string {
@@ -48,9 +50,23 @@ func (dev *DeviceDetails) GetOrder() int {
 	return deviceDetailsOrdering
 }
 
-func NewDeviceDetails(ptpDevInfo *devices.PTPDeviceInfo) *DeviceDetails {
-	return &DeviceDetails{
+func NewDeviceDetails(args map[string]any) (validationsBase.Validation, error) {
+	rawPTPDevInfo, ok := args[datafetcher.DevInfoFetcher]
+	if !ok {
+		return nil, fmt.Errorf("dev info not set in args")
+	}
+	ptpDevInfo, ok := rawPTPDevInfo.(*devices.PTPDeviceInfo)
+	if !ok {
+		return nil, fmt.Errorf("failed to typecast  dev info")
+	}
+
+	v := DeviceDetails{
 		VendorID: ptpDevInfo.VendorID,
 		DeviceID: ptpDevInfo.DeviceID,
 	}
+	return &v, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(DeviceDetailsID, NewDeviceDetails, []string{datafetcher.DevInfoFetcher})
 }

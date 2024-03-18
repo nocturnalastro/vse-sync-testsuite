@@ -14,10 +14,11 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 )
 
 const (
-	clusterVersionID  = TGMEnvVerPath + "/RHOCP/"
+	ClusterVersionID  = TGMEnvVerPath + "/RHOCP/"
 	MinClusterVersion = "4.14.0-0" // trailing -0 is required to allow preGA version
 )
 
@@ -69,16 +70,25 @@ func getClusterVersion(
 	return "", errors.New("failed to find PTP Operator CSV")
 }
 
-func NewClusterVersion(client *clients.Clientset) *VersionWithErrorCheck {
+func NewClusterVersion(args map[string]any) (validationsBase.Validation, error) {
+	rawClient, ok := args["clientset"]
+	if !ok {
+		return nil, fmt.Errorf("clientset not in args")
+	}
+	client, ok := rawClient.(*clients.Clientset)
+	if !ok {
+		return nil, fmt.Errorf("clientset not in args")
+	}
+
 	version, err := getClusterVersion(
 		"config.openshift.io",
 		"v1",
 		"clusterversions",
 		client,
 	)
-	return &VersionWithErrorCheck{
+	v := VersionWithErrorCheck{
 		VersionCheck: VersionCheck{
-			id:           clusterVersionID,
+			id:           ClusterVersionID,
 			Version:      version,
 			checkVersion: version,
 			MinVersion:   MinClusterVersion,
@@ -86,4 +96,9 @@ func NewClusterVersion(client *clients.Clientset) *VersionWithErrorCheck {
 		},
 		Error: err,
 	}
+	return &v, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(ClusterVersionID, NewClusterVersion, []string{})
 }

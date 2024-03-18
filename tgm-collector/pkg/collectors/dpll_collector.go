@@ -10,6 +10,7 @@ import (
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
 const (
@@ -36,5 +37,15 @@ func NewDPLLCollector(constructor *collectorsBase.CollectionConstructor) (collec
 }
 
 func init() {
-	collectorsBase.RegisterCollector(DPLLCollectorName, NewDPLLCollector, collectorsBase.Optional, collectorsBase.RunOnAll)
+	collectorsBase.RegisterCollector(
+		DPLLCollectorName,
+		NewDPLLCollector,
+		collectorsBase.Optional,
+		collectorsBase.RunOnAll,
+		[]string{
+			validations.DeviceDetailsID,
+			validations.DeviceDriverVersionID,
+			validations.DeviceFirmwareID,
+		},
+	)
 }

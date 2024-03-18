@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/callbacks"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/runner"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
@@ -23,84 +22,6 @@ const (
 	unknownMsgPrefix = "The following error occurred when trying to gather environment data for the following validations"
 	antPowerRetries  = 3
 )
-
-//nolint:ireturn // this needs to be an interface
-func getDevInfoValidations(
-	clientset *clients.Clientset,
-	interfaceName string,
-) []validationsBase.Validation {
-	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
-	utils.IfErrorExitOrPanic(err)
-	devInfo, err := devices.GetPTPDeviceInfo(interfaceName, ctx)
-	utils.IfErrorExitOrPanic(err)
-	devDetails := validations.NewDeviceDetails(&devInfo)
-	devFirmware := validations.NewDeviceFirmware(&devInfo)
-	devDriver := validations.NewDeviceDriver(&devInfo)
-	return []validationsBase.Validation{devDetails, devFirmware, devDriver}
-}
-
-func getGPSVersionValidations(
-	clientset *clients.Clientset,
-) []validationsBase.Validation {
-	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
-	utils.IfErrorExitOrPanic(err)
-	gnssVersions, err := devices.GetGPSVersions(ctx)
-	utils.IfErrorExitOrPanic(err)
-	return []validationsBase.Validation{
-		validations.NewGNSS(&gnssVersions),
-		validations.NewGPSDVersion(&gnssVersions),
-		validations.NewGNSDevices(&gnssVersions),
-		validations.NewGNSSModule(&gnssVersions),
-		validations.NewGNSSProtocol(&gnssVersions),
-	}
-}
-
-func getGPSStatusValidation(
-	clientset *clients.Clientset,
-) []validationsBase.Validation {
-	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
-	utils.IfErrorExitOrPanic(err)
-
-	// If we need to do this for more validations then consider a generic
-	var antCheck *validations.GNSSAntStatus
-	var gpsDetails devices.GPSDetails
-	for i := 0; i < antPowerRetries; i++ {
-		gpsDetails, err = devices.GetGPSNav(ctx)
-		if err != nil {
-			continue
-		}
-		if antCheck = validations.NewGNSSAntStatus(&gpsDetails); antCheck.Verify() == nil {
-			break
-		}
-		time.Sleep(time.Second)
-	}
-	utils.IfErrorExitOrPanic(err)
-	return []validationsBase.Validation{
-		antCheck,
-		validations.NewGNSSNavStatus(&gpsDetails),
-	}
-}
-
-func getClusterChecks(clientset *clients.Clientset) []validationsBase.Validation {
-	return []validationsBase.Validation{
-		validations.NewOperatorVersion(clientset),
-		validations.NewClusterVersion(clientset),
-	}
-}
-
-func getValidations(interfaceName, kubeConfig string) []validationsBase.Validation {
-	checks := make([]validationsBase.Validation, 0)
-	clientset, err := clients.GetClientset(kubeConfig)
-	utils.IfErrorExitOrPanic(err)
-	checks = append(checks, getDevInfoValidations(clientset, interfaceName)...)
-	checks = append(checks, getGPSVersionValidations(clientset)...)
-	checks = append(checks, getGPSStatusValidation(clientset)...)
-	checks = append(checks, validations.NewIsGrandMaster(clientset))
-	if clients.GetRuntimeTarget() == clients.TargetOCP {
-		checks = append(checks, getClusterChecks(clientset)...)
-	}
-	return checks
-}
 
 func reportAnalyserJSON(results []*ValidationResult) {
 	callback, err := callbacks.SetupCallback("-", callbacks.AnalyserJSON)
@@ -171,9 +92,46 @@ func report(results []*ValidationResult, useAnalyserJSON bool) {
 	}
 }
 
+func getValidations(interfaceName string, kubeConfig string) []validationsBase.Validation {
+	collectorNamers := runner.GetCollectorsToRun(clients.GetRuntimeTarget(), []string{runner.All})
+	validationsNames := make([]string, 0)
+	validationsNames = append(validationsNames, validations.GeneralValidations()...)
+
+	collectorRegistry := collectors.GetRegistry()
+	for _, cName := range collectorNamers {
+		validationsNames = append(validationsNames, collectorRegistry.GetValidations(cName)...)
+	}
+
+	validationsRegistry := validationsBase.GetRegistry()
+
+	datafetchers, err := validationsRegistry.GetDataFetcher(validationsNames)
+	utils.IfErrorExitOrPanic(err)
+
+	clientset, err := clients.GetClientset(kubeConfig)
+	utils.IfErrorExitOrPanic(err)
+
+	args := map[string]any{
+		"clientset":     clientset,
+		"interfaceName": interfaceName,
+	}
+
+	for key, df := range datafetchers {
+		args[key], err = df(clientset, args)
+		utils.IfErrorExitOrPanic(err)
+	}
+
+	validations := make([]validationsBase.Validation, 0)
+	for _, vName := range validationsNames {
+		f, _, _ := validationsRegistry.GetBuilderFunc(vName)
+		v, err := f(args)
+		utils.IfErrorExitOrPanic(err)
+		validations = append(validations, v)
+	}
+	return validations
+}
+
 func Verify(interfaceName, kubeConfig string, useAnalyserJSON bool) {
 	checks := getValidations(interfaceName, kubeConfig)
-
 	results := make([]*ValidationResult, 0)
 	for _, check := range checks {
 		results = append(results, NewValidationResult(check))

@@ -8,11 +8,13 @@ import (
 
 	"golang.org/x/mod/semver"
 
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations/datafetcher"
 )
 
 const (
-	deviceDriverVersionID          = TGMEnvVerPath + "/ice-driver/"
+	DeviceDriverVersionID          = TGMEnvVerPath + "/ice-driver/"
 	deviceDriverVersionDescription = "Card driver is valid"
 )
 
@@ -22,7 +24,16 @@ var (
 	outOfTreeIceDriverSegments = 3
 )
 
-func NewDeviceDriver(ptpDevInfo *devices.PTPDeviceInfo) *VersionWithErrorCheck {
+func NewDeviceDriver(args map[string]any) (validationsBase.Validation, error) {
+	rawPTPDevInfo, ok := args[datafetcher.DevInfoFetcher]
+	if !ok {
+		return nil, fmt.Errorf("dev info not set in args")
+	}
+	ptpDevInfo, ok := rawPTPDevInfo.(*devices.PTPDeviceInfo)
+	if !ok {
+		return nil, fmt.Errorf("failed to typecast  dev info")
+	}
+
 	var err error
 	checkVer := ptpDevInfo.DriverVersion
 	if checkVer[len(checkVer)-1] == '.' {
@@ -45,9 +56,9 @@ func NewDeviceDriver(ptpDevInfo *devices.PTPDeviceInfo) *VersionWithErrorCheck {
 		}
 	}
 
-	return &VersionWithErrorCheck{
+	v := VersionWithErrorCheck{
 		VersionCheck: VersionCheck{
-			id:           deviceDriverVersionID,
+			id:           DeviceDriverVersionID,
 			Version:      ptpDevInfo.DriverVersion,
 			checkVersion: checkVer,
 			MinVersion:   minDriverVersion,
@@ -56,4 +67,9 @@ func NewDeviceDriver(ptpDevInfo *devices.PTPDeviceInfo) *VersionWithErrorCheck {
 		},
 		Error: err,
 	}
+	return &v, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(DeviceDriverVersionID, NewDeviceDriver, []string{datafetcher.DevInfoFetcher})
 }

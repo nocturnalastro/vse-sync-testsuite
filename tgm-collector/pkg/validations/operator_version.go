@@ -14,10 +14,11 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 )
 
 const (
-	ptpOperatorVersionID          = TGMEnvVerPath + "/openshift/ptp-operator/"
+	PTPOperatorVersionID          = TGMEnvVerPath + "/openshift/ptp-operator/"
 	ptpOperatorVersionDescription = "PTP Operator Version is valid"
 	MinOperatorVersion            = "4.14.0-0" // trailing -0 is required to allow preGA version
 	ptpOperatorDiplayName         = "PTP Operator"
@@ -72,7 +73,15 @@ func getOperatorVersion(
 	return "", errors.New("failed to find PTP Operator CSV")
 }
 
-func NewOperatorVersion(client *clients.Clientset) *VersionWithErrorCheck {
+func NewOperatorVersion(args map[string]any) (validationsBase.Validation, error) {
+	rawClient, ok := args["clientset"]
+	if !ok {
+		return nil, fmt.Errorf("clientset not in args")
+	}
+	client, ok := rawClient.(*clients.Clientset)
+	if !ok {
+		return nil, fmt.Errorf("clientset not in args")
+	}
 	version, err := getOperatorVersion(
 		"operators.coreos.com",
 		"v1alpha1",
@@ -80,9 +89,9 @@ func NewOperatorVersion(client *clients.Clientset) *VersionWithErrorCheck {
 		"openshift-ptp",
 		client,
 	)
-	return &VersionWithErrorCheck{
+	v := VersionWithErrorCheck{
 		VersionCheck: VersionCheck{
-			id:           ptpOperatorVersionID,
+			id:           PTPOperatorVersionID,
 			Version:      version,
 			checkVersion: version,
 			MinVersion:   MinOperatorVersion,
@@ -91,4 +100,9 @@ func NewOperatorVersion(client *clients.Clientset) *VersionWithErrorCheck {
 		},
 		Error: err,
 	}
+	return &v, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(PTPOperatorVersionID, NewOperatorVersion, []string{})
 }

@@ -4,14 +4,17 @@ package validations
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations/datafetcher"
 )
 
 const (
 	expectedAntStatus        = 2
-	gnssAntStatusID          = TGMSyncEnvPath + "/gnss/antenna-connected/wpc/"
+	GNSSAntStatusID          = TGMSyncEnvPath + "/gnss/antenna-connected/wpc/"
 	gnssAntStatusDescription = "GNSS Module is connected to an antenna"
 )
 
@@ -29,7 +32,7 @@ func (gnssAnt *GNSSAntStatus) Verify() error {
 }
 
 func (gnssAnt *GNSSAntStatus) GetID() string {
-	return gnssAntStatusID
+	return GNSSAntStatusID
 }
 
 func (gnssAnt *GNSSAntStatus) GetDescription() string {
@@ -44,6 +47,18 @@ func (gnssAnt *GNSSAntStatus) GetOrder() int {
 	return gnssConnectedToAntOrdering
 }
 
-func NewGNSSAntStatus(gpsSatus *devices.GPSDetails) *GNSSAntStatus {
-	return &GNSSAntStatus{Blocks: gpsSatus.AntennaDetails}
+func NewGNSSAntStatus(args map[string]any) (validationsBase.Validation, error) {
+	rawGPSNav, ok := args[datafetcher.GPSNavFetcher]
+	if !ok {
+		return nil, fmt.Errorf("gps nav status not set in args")
+	}
+	gpsStatus, ok := rawGPSNav.(*devices.GPSDetails)
+	if !ok {
+		return nil, fmt.Errorf("gps nav status couldn't be type cast")
+	}
+	return &GNSSAntStatus{Blocks: gpsStatus.AntennaDetails}, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(GNSSAntStatusID, NewGNSSAntStatus, []string{datafetcher.GPSNavFetcher})
 }

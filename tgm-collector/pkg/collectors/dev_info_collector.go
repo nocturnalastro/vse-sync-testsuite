@@ -3,17 +3,13 @@
 package collectors
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
-	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
@@ -122,38 +118,6 @@ func (ptpDev *DevInfoCollector) CleanUp() error {
 	return nil
 }
 
-func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *collectorsBase.CollectionConstructor) error {
-	checkErrors := make([]error, 0)
-	checks := []validationsBase.Validation{
-		validations.NewDeviceDetails(ptpDevInfo),
-		validations.NewDeviceDriver(ptpDevInfo),
-		validations.NewDeviceFirmware(ptpDevInfo),
-	}
-
-	for _, check := range checks {
-		err := check.Verify()
-		if err != nil {
-			var invalidEnv *utils.InvalidEnvError
-			if errors.As(err, &invalidEnv) {
-				checkErrors = append(checkErrors, err)
-			} else {
-				log.Warningf("failed to verify %s: %s", check.GetDescription(), err.Error())
-			}
-		}
-	}
-
-	if len(checkErrors) > 0 {
-		callbackErr := constructor.Callback.Call(ptpDevInfo, DeviceInfo)
-		if callbackErr != nil {
-			checkErrors = append(checkErrors, fmt.Errorf("callback failed %w", callbackErr))
-		}
-		//nolint:wrapcheck // this returns a wrapped error
-		return utils.MakeCompositeInvalidEnvError(checkErrors)
-	}
-
-	return nil
-}
-
 // Returns a new DevInfoCollector from the CollectionConstuctor Factory
 func NewDevInfoCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
 	// Build DPPInfoFetcher ahead of time call to GetPTPDeviceInfo will build the other
@@ -177,11 +141,6 @@ func NewDevInfoCollector(constructor *collectorsBase.CollectionConstructor) (col
 		return &DevInfoCollector{}, fmt.Errorf("failed to fetch initial DeviceInfo %w", err)
 	}
 
-	err = verify(&ptpDevInfo, constructor)
-	if err != nil {
-		return &DevInfoCollector{}, err
-	}
-
 	collector := DevInfoCollector{
 		ExecCollector: collectorsBase.NewExecCollector(
 			constructor.DevInfoAnnouceInterval,
@@ -200,5 +159,15 @@ func NewDevInfoCollector(constructor *collectorsBase.CollectionConstructor) (col
 }
 
 func init() {
-	collectorsBase.RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, collectorsBase.Required, collectorsBase.RunOnAll)
+	collectorsBase.RegisterCollector(
+		DevInfoCollectorName,
+		NewDevInfoCollector,
+		collectorsBase.Required,
+		collectorsBase.RunOnAll,
+		[]string{
+			validations.DeviceDetailsID,
+			validations.DeviceDriverVersionID,
+			validations.DeviceFirmwareID,
+		},
+	)
 }

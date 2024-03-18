@@ -25,5 +25,11 @@ func NewPTPLogsCollector(constructor *collectorsBase.CollectionConstructor) (col
 
 func init() {
 	// Make log opt in as in may lose some data.
-	collectorsBase.RegisterCollector(LogsCollectorName, NewPTPLogsCollector, collectorsBase.Optional, collectorsBase.RunOnOCP)
+	collectorsBase.RegisterCollector(
+		LogsCollectorName,
+		NewPTPLogsCollector,
+		collectorsBase.Optional,
+		collectorsBase.RunOnOCP,
+		[]string{},
+	)
 }

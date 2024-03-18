@@ -257,6 +257,10 @@ func (logs *LogsCollector) CleanUp() error {
 	return nil
 }
 
+func GetValidations() []string {
+	return []string{}
+}
+
 //nolint:varnamelen,funlen // ok is the standard name for these checks,
 func getArgsFromCollectorArgs(constructor *CollectionConstructor) (
 	includeLogTimestamps bool,

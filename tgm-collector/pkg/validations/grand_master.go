@@ -12,10 +12,11 @@ import (
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 )
 
 const (
-	configuredForGrandMaster            = TGMSyncEnvPath + "/ptp-operator/"
+	ConfiguredForGrandMaster            = TGMSyncEnvPath + "/ptp-operator/"
 	configuredForGrandMasterDescription = "Configured for grand master"
 	localEnvVarTs2Phc                   = "COLLECTORS_LOCAL_TS2PHC_PATH"
 )
@@ -76,7 +77,7 @@ func (gm *GMProfiles) Verify() error {
 }
 
 func (gm *GMProfiles) GetID() string {
-	return configuredForGrandMaster
+	return ConfiguredForGrandMaster
 }
 
 func (gm *GMProfiles) GetDescription() string {
@@ -91,14 +92,23 @@ func (gm *GMProfiles) GetOrder() int {
 	return configuredForGrandMasterOrdering
 }
 
-func NewIsGrandMaster(client *clients.Clientset) *GMProfiles {
+func NewIsGrandMaster(args map[string]any) (validationsBase.Validation, error) {
+	rawClient, ok := args["clientset"]
+	if !ok {
+		return nil, fmt.Errorf("clientset not in args")
+	}
+	client, ok := rawClient.(*clients.Clientset)
+	if !ok {
+		return nil, fmt.Errorf("clientset not in args")
+	}
+
 	gmProfiles := &GMProfiles{}
 
 	if client.Target == clients.TargetOCP {
 		ptpConfigList, err := fetchPTPConfigs(client)
 		gmProfiles.Error = err
 		if err != nil {
-			return gmProfiles
+			return gmProfiles, nil
 		}
 		for _, item := range ptpConfigList.Items {
 			gmProfiles.Profiles = append(gmProfiles.Profiles, item.Spec.Profiles...)
@@ -107,16 +117,20 @@ func NewIsGrandMaster(client *clients.Clientset) *GMProfiles {
 		configPath := os.Getenv(localEnvVarTs2Phc)
 		if configPath == "" {
 			gmProfiles.Error = fmt.Errorf("env var %s was not found", localEnvVarTs2Phc)
-			return gmProfiles
+			return gmProfiles, nil
 		}
 		ts2phcConfig, err := os.ReadFile(configPath)
 		if err != nil {
 			gmProfiles.Error = fmt.Errorf("failed to open file: %w", err)
-			return gmProfiles
+			return gmProfiles, nil
 		}
 		gmProfiles.Profiles = []PTPConfigProfile{
 			{TS2PhcConf: string(ts2phcConfig)},
 		}
 	}
-	return gmProfiles
+	return gmProfiles, nil
+}
+
+func init() {
+	validationsBase.RegisterValidation(ConfiguredForGrandMaster, NewIsGrandMaster, []string{})
 }

@@ -14,8 +14,9 @@ type collectorInclusionType int
 
 type runTarget int
 type entry struct {
-	name   string
-	target runTarget
+	name        string
+	target      runTarget
+	validations []string
 }
 
 const (
@@ -29,8 +30,9 @@ const (
 
 type CollectorRegistry struct {
 	registry map[string]collectonBuilderFunc
-	required []entry
-	optional []entry
+	all      map[string]*entry
+	required []*entry
+	optional []*entry
 }
 
 var registry *CollectorRegistry
@@ -44,9 +46,10 @@ func (reg *CollectorRegistry) register(
 	builderFunc collectonBuilderFunc,
 	inclusionType collectorInclusionType,
 	target runTarget,
+	validations []string,
 ) {
 	reg.registry[collectorName] = builderFunc
-	entry := entry{name: collectorName, target: target}
+	entry := &entry{name: collectorName, target: target, validations: validations}
 	switch inclusionType {
 	case Required:
 		reg.required = append(reg.required, entry)
@@ -55,6 +58,7 @@ func (reg *CollectorRegistry) register(
 	default:
 		log.Panic("Incorrect collector inclusion type")
 	}
+	reg.all[collectorName] = entry
 }
 
 func (reg *CollectorRegistry) GetBuilderFunc(collectorName string) (collectonBuilderFunc, error) {
@@ -75,7 +79,7 @@ func fromTargetTypeToRunOn(target clients.TargetType) runTarget {
 	return RunOnAll
 }
 
-func getFilteredTargets(entries []entry, target clients.TargetType) []string {
+func getFilteredTargets(entries []*entry, target clients.TargetType) []string {
 	names := make([]string, 0)
 	runOn := fromTargetTypeToRunOn(target)
 	for _, entry := range entries {
@@ -94,18 +98,24 @@ func (reg *CollectorRegistry) GetOptionalNames(target clients.TargetType) []stri
 	return getFilteredTargets(reg.optional, target)
 }
 
+func (reg *CollectorRegistry) GetValidations(collectorName string) []string {
+	return reg.all[collectorName].validations
+}
+
 func RegisterCollector(
 	collectorName string,
 	builderFunc collectonBuilderFunc,
 	inclusionType collectorInclusionType,
 	target runTarget,
+	validations []string,
 ) {
 	if registry == nil {
 		registry = &CollectorRegistry{
 			registry: make(map[string]collectonBuilderFunc, 0),
-			required: make([]entry, 0),
-			optional: make([]entry, 0),
+			all:      make(map[string]*entry),
+			required: make([]*entry, 0),
+			optional: make([]*entry, 0),
 		}
 	}
-	registry.register(collectorName, builderFunc, inclusionType, target)
+	registry.register(collectorName, builderFunc, inclusionType, target, validations)
 }
