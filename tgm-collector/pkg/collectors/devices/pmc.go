@@ -83,20 +83,6 @@ var (
 	)
 )
 
-func init() {
-	pmcFetcher = fetcher.NewFetcher()
-	pmcFetcher.SetPostProcessor(processPMC)
-	pmcFetcher.AddCommand(getDateCommand())
-	err := pmcFetcher.AddNewCommand(
-		"PMC",
-		"pmc -u -f /var/run/ptp4l.0.config  'GET GRANDMASTER_SETTINGS_NP'",
-		true,
-	)
-	if err != nil {
-		panic(fmt.Errorf("failed to setup PMC fetcher %w", err))
-	}
-}
-
 func processPMC(result map[string]string) (map[string]any, error) { //nolint:funlen // allow slightly long function
 	processedResult := make(map[string]any)
 	match := pmcRegEx.FindStringSubmatch(result["PMC"])
@@ -145,4 +131,16 @@ func GetPMC(ctx clients.ExecContext) (PMCInfo, error) {
 		return gmSetting, fmt.Errorf("failed to fetch gmSetting %w", err)
 	}
 	return gmSetting, nil
+}
+
+func BuildPMCFetcher(configFile string) error {
+	pmcFetcher = fetcher.NewFetcher()
+	pmcFetcher.SetPostProcessor(processPMC)
+	pmcFetcher.AddCommand(getDateCommand())
+	return pmcFetcher.AddNewCommand(
+		"PMC",
+		fmt.Sprintf("pmc -u -f %s  'GET GRANDMASTER_SETTINGS_NP'", configFile),
+		true,
+	)
+
 }

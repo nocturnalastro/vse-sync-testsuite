@@ -5,6 +5,7 @@ package collectors //nolint:dupl // new collector
 import (
 	"fmt"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
@@ -57,6 +58,19 @@ func NewPMCCollector(constructor *collectorsBase.CollectionConstructor) (collect
 		return &PMCCollector{}, fmt.Errorf("failed to create PMCCollector: %w", err)
 	}
 
+	var configFile string
+	switch constructor.Target {
+	case clients.TargetOCP:
+		configFile = "/var/run/ptp4l.0.config"
+	case clients.TargetLocal:
+		configFile = "/env/ptp4l.config"
+	}
+
+	err = devices.BuildPMCFetcher(configFile)
+	if err != nil {
+		return &PMCCollector{}, fmt.Errorf("failed to create PMCCollector's fetcher: %w", err)
+	}
+
 	collector := PMCCollector{
 		ExecCollector: collectorsBase.NewExecCollector(
 			constructor.PollInterval,
@@ -70,5 +84,5 @@ func NewPMCCollector(constructor *collectorsBase.CollectionConstructor) (collect
 }
 
 func init() {
-	collectorsBase.RegisterCollector(PMCCollectorName, NewPMCCollector, collectorsBase.Optional, collectorsBase.RunOnAll)
+	collectorsBase.RegisterCollector(PMCCollectorName, NewPMCCollector, collectorsBase.Optional, collectorsBase.RunOnOCP)
 }
