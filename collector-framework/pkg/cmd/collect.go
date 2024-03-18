@@ -21,7 +21,7 @@ const (
 	defaultDevInfoInterval int    = 60
 )
 
-type CollectorArgFunc func([]string) map[string]map[string]any
+type CollectorArgFunc func(clients.TargetType, []string) map[string]map[string]any
 
 var (
 	requestedDurationStr   string
@@ -54,7 +54,7 @@ func runCollector(target clients.TargetType) {
 	collectorArgs := make(map[string]map[string]any)
 	if runFunc != nil {
 		log.Debug("No runFunc function is defined")
-		collectorArgs = runFunc(collectorNames)
+		collectorArgs = runFunc(target, collectorNames)
 	}
 
 	collectionRunner.Run(

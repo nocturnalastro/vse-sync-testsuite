@@ -5,7 +5,9 @@ package collectors
 import (
 	"errors"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 )
 
 //nolint:varnamelen // ok is the idomatic name for this var
@@ -28,3 +30,7 @@ func getPTPInterfaceName(constructor *collectorsBase.CollectionConstructor) (str
 
 // Empty function used to insure the collectors module gets added to the resulting binary
 func IncludeCollectorsNoOp() {}
+
+func getPTPDaemonContext(c *clients.Clientset) (clients.ExecContext, error) {
+	return contexts.GetPTPDaemonContext(c)
+}

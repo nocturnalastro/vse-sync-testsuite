@@ -142,5 +142,4 @@ func BuildPMCFetcher(configFile string) error {
 		fmt.Sprintf("pmc -u -f %s  'GET GRANDMASTER_SETTINGS_NP'", configFile),
 		true,
 	)
-
 }

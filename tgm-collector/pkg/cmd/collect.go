@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	fCmd "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/cmd"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/runner"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
@@ -51,8 +52,9 @@ func init() { //nolint:funlen // Allow this to get a little long
 	setCommonFlags(fCmd.CollectOCP)
 	setCommonFlags(fCmd.CollectLocal)
 
-	fCmd.SetCollecterArgsFunc(func(collectorNames []string) map[string]map[string]any {
+	fCmd.SetCollecterArgsFunc(func(target clients.TargetType, selectedCollectors []string) map[string]map[string]any {
 		// Check args
+		collectorNames := runner.GetCollectorsToRun(target, selectedCollectors)
 		for _, c := range collectorNames {
 			if (c == collectors.LogsCollectorName || c == runner.All) && logsOutputFile == "" {
 				utils.IfErrorExitOrPanic(utils.NewMissingInputError(

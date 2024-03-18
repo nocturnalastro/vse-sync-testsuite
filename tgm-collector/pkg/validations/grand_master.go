@@ -92,11 +92,11 @@ func (gm *GMProfiles) GetOrder() int {
 }
 
 func NewIsGrandMaster(client *clients.Clientset) *GMProfiles {
-	var gmProfiles *GMProfiles
+	gmProfiles := &GMProfiles{}
 
 	if client.Target == clients.TargetOCP {
 		ptpConfigList, err := fetchPTPConfigs(client)
-		gmProfiles := &GMProfiles{Error: err}
+		gmProfiles.Error = err
 		if err != nil {
 			return gmProfiles
 		}

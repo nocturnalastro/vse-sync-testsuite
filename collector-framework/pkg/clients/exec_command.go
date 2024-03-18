@@ -3,10 +3,12 @@
 package clients
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -18,6 +20,13 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
+
+	"github.com/containers/podman/v2/libpod/define"
+	"github.com/containers/podman/v2/pkg/bindings"
+	"github.com/containers/podman/v2/pkg/bindings/containers"
+	"github.com/containers/podman/v2/pkg/bindings/images"
+	"github.com/containers/podman/v2/pkg/domain/entities"
+	"github.com/containers/podman/v2/pkg/specgen"
 )
 
 const (
@@ -355,6 +364,7 @@ func (c *ContainerCreationExecContext) waitForPodToDelete() error {
 	}
 	return errors.New("pod has not terminated within the timeout")
 }
+
 func (c *ContainerCreationExecContext) DeletePodAndWait() error {
 	err := c.deletePod()
 	if err != nil {
@@ -391,28 +401,142 @@ func NewContainerCreationExecContext(
 	}
 }
 
+var podmanConnection context.Context
+
+func getPodmanConnection() (context.Context, error) {
+	if podmanConnection == nil {
+		// Get Podman socket location
+		sock_dir := os.Getenv("XDG_RUNTIME_DIR")
+		socket := "unix:" + sock_dir + "/podman/podman.sock"
+
+		// Connect to Podman socket
+		ctx, err := bindings.NewConnection(context.Background(), socket)
+		if err != nil {
+			log.Panic("Failed to get connection to podman socket")
+			return nil, err
+		}
+		podmanConnection = ctx
+	}
+	return podmanConnection, nil
+}
+
+type ContainerDef struct {
+	Name       string
+	Image      string
+	Privilaged bool
+	id         string
+}
+
+func (c *ContainerDef) start() error {
+	conn, err := getPodmanConnection()
+	if err != nil {
+		return nil
+	}
+	_, err = images.Pull(conn, c.Image, entities.ImagePullOptions{})
+	if err != nil {
+		return err
+	}
+
+	s := specgen.NewSpecGenerator(c.Image, false)
+	s.Privileged = c.Privilaged
+	s.NetNS, err = specgen.ParseNamespace("host")
+	s.Terminal = true
+	s.Name = c.Name
+
+	createResponse, err := containers.CreateWithSpec(conn, s)
+	if err != nil {
+		return err
+	}
+	err = containers.Start(conn, createResponse.ID, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type writerCloser struct {
+	bytes.Buffer
+}
+
+func (w *writerCloser) Close() error {
+	return nil
+}
+
+func (c *ContainerDef) stop() error {
+	conn, err := getPodmanConnection()
+	if err != nil {
+		return nil
+	}
+	err = containers.Stop(conn, c.id, nil)
+	return nil
+}
+
+func (c *ContainerDef) exec(command string) (stdout, stderr string, err error) {
+	conn, err := getPodmanConnection()
+	if err != nil {
+		return "", "", err
+	}
+	sessionID, err := containers.ExecCreate(conn, c.id, nil)
+	if err != nil {
+		return "", "", err
+	}
+	var (
+		buffIn  bytes.Buffer
+		buffOut writerCloser
+		buffErr writerCloser
+	)
+
+	err = containers.ExecStartAndAttach(conn, sessionID, &define.AttachStreams{
+		AttachInput:  true,
+		InputStream:  bufio.NewReader(&buffIn),
+		AttachOutput: true,
+		OutputStream: &buffOut,
+		AttachError:  true,
+		ErrorStream:  &buffErr,
+	})
+	return buffOut.String(), buffErr.String(), nil
+}
+
 // ContainerExecContext encapsulates the context in which a command is run; the namespace, pod, and container.
-type LocalExecContext struct{}
+type LocalExecContext struct {
+	Target    TargetType
+	container *ContainerDef
+}
 
 func (l *LocalExecContext) execCommand(command []string, buffInPtr *bytes.Buffer) (stdout, stderr string, err error) {
-	cmd := exec.Command(strings.Join(command, " "))
+	in := buffInPtr.String()
+	if l.container != nil {
+		return l.container.exec(in)
+	}
+
+	cmd := exec.Command(strings.Join(command, " "), "-c", in)
 	var stdoutBuffer, stderrBuffer bytes.Buffer
 	cmd.Stdout = &stdoutBuffer
 	cmd.Stderr = &stderrBuffer
 	err = cmd.Run()
+	fmt.Println("could not run command: ", err)
+	fmt.Println("stdin:", in)
+	fmt.Println("stdout:", stdoutBuffer.String())
+	fmt.Println("stderr:", stderrBuffer.String())
 	if err != nil {
 		// if there was any error, print it here
 		fmt.Println("could not run command: ", err)
+		fmt.Println("stdout:", stdoutBuffer.String())
+		fmt.Println("stderr:", stderrBuffer.String())
 	}
 	return stdoutBuffer.String(), stderrBuffer.String(), err
 }
 
 func (l *LocalExecContext) CreatePodAndWait() error {
-	// TODO perhaps use podman here
+	if l.container == nil {
+		return l.container.start()
+	}
 	return nil
 }
 func (l *LocalExecContext) DeletePodAndWait() error {
-	// TODO perhaps use podman here
+	if l.container == nil {
+		return l.container.stop()
+	}
 	return nil
 }
 
@@ -428,9 +552,9 @@ func (l *LocalExecContext) ExecCommandStdIn(command []string, buffIn bytes.Buffe
 	return l.execCommand(command, &buffIn)
 }
 
-func ContainerOrLocal(target TargetType, ctx ExecContext) ExecContext {
-	if target == TargetOCP {
-		return ctx
+func ContainerOrLocal(clientset *Clientset, f func(*Clientset) (ExecContext, error), container *ContainerDef) (ExecContext, error) {
+	if clientset.Target == TargetOCP {
+		return f(clientset)
 	}
-	return &LocalExecContext{}
+	return &LocalExecContext{Target: TargetLocal, container: container}, nil
 }

@@ -65,7 +65,6 @@ func init() {
 	AddFormatFlag(VerifyEnvCmdOCP)
 
 	VerifyEnvCmd.AddCommand(VerifyEnvCmdLocal)
-	AddKubeconfigFlag(VerifyEnvCmdLocal)
 	AddOutputFlag(VerifyEnvCmdLocal)
 	AddFormatFlag(VerifyEnvCmdLocal)
 

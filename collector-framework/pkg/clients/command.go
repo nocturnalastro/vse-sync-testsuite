@@ -28,8 +28,8 @@ func NewCmd(key, cmd string) (*Cmd, error) {
 	cmdInstance := Cmd{
 		key:    key,
 		cmd:    cmd,
-		prefix: fmt.Sprintf("echo '<%s>'", key),
-		suffix: fmt.Sprintf("echo '</%s>'", key),
+		prefix: fmt.Sprintf(`echo "<%s>"`, key),
+		suffix: fmt.Sprintf(`echo "</%s>"`, key),
 	}
 
 	cmdInstance.fullCmd = fmt.Sprintf("%s;", cmdInstance.prefix)

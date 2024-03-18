@@ -150,7 +150,7 @@ func GetDevDPLLNetlinkInfo(ctx clients.ExecContext, clockID int64) (DevNetlinkDP
 
 func BuildClockIDFetcher(interfaceName string) error {
 	fetcherInst, err := fetcher.FetcherFactory(
-		[]*clients.Cmd{dateCmd},
+		[]*clients.Cmd{},
 		[]fetcher.AddCommandArgs{
 			{
 				Key: "dpll-netlink-clock-id",

@@ -9,8 +9,9 @@ import (
 )
 
 func init() {
-	AddInterfaceFlag(fCmd.VerifyEnvCmd)
 	fCmd.SetVerifyFunc(func(target clients.TargetType, kubeconfig string, useAnalyserJSON bool) {
 		verify.Verify(target, ptpInterface, kubeconfig, useAnalyserJSON)
 	})
+	AddInterfaceFlag(fCmd.VerifyEnvCmdOCP)
+	AddInterfaceFlag(fCmd.VerifyEnvCmdLocal)
 }

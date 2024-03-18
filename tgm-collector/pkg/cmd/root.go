@@ -12,5 +12,6 @@ func Execute() {
 }
 
 func init() {
+	fCmd.RootCmd.Use = "tgm-collector"
 	collectors.IncludeCollectorsNoOp()
 }

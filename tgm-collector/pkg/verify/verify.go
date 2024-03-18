@@ -24,12 +24,16 @@ const (
 	antPowerRetries  = 3
 )
 
+func getPTPDaemonContext(c *clients.Clientset) (clients.ExecContext, error) {
+	return contexts.GetPTPDaemonContext(c)
+}
+
 //nolint:ireturn // this needs to be an interface
 func getDevInfoValidations(
 	clientset *clients.Clientset,
 	interfaceName string,
 ) []validationsBase.Validation {
-	ctx, err := contexts.GetPTPDaemonContext(clientset)
+	ctx, err := clients.ContainerOrLocal(clientset, getPTPDaemonContext, nil)
 	utils.IfErrorExitOrPanic(err)
 	devInfo, err := devices.GetPTPDeviceInfo(interfaceName, ctx)
 	utils.IfErrorExitOrPanic(err)
@@ -42,7 +46,7 @@ func getDevInfoValidations(
 func getGPSVersionValidations(
 	clientset *clients.Clientset,
 ) []validationsBase.Validation {
-	ctx, err := contexts.GetPTPDaemonContext(clientset)
+	ctx, err := clients.ContainerOrLocal(clientset, getPTPDaemonContext, nil)
 	utils.IfErrorExitOrPanic(err)
 	gnssVersions, err := devices.GetGPSVersions(ctx)
 	utils.IfErrorExitOrPanic(err)
@@ -58,7 +62,7 @@ func getGPSVersionValidations(
 func getGPSStatusValidation(
 	clientset *clients.Clientset,
 ) []validationsBase.Validation {
-	ctx, err := contexts.GetPTPDaemonContext(clientset)
+	ctx, err := clients.ContainerOrLocal(clientset, getPTPDaemonContext, nil)
 	utils.IfErrorExitOrPanic(err)
 
 	// If we need to do this for more validations then consider a generic

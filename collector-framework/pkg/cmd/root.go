@@ -16,7 +16,7 @@ var (
 
 	// RootCmd represents the base command when called without any subcommands
 	RootCmd = &cobra.Command{
-		Use:   "vse-sync-testsuite",
+		Use:   "collector",
 		Short: "A monitoring tool for PTP related metrics",
 		Long:  `A monitoring tool for PTP related metrics.`,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {

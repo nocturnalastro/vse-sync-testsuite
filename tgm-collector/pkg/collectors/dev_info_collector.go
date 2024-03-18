@@ -11,10 +11,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
@@ -157,7 +157,7 @@ func verify(ptpDevInfo *devices.PTPDeviceInfo, constructor *collectorsBase.Colle
 // Returns a new DevInfoCollector from the CollectionConstuctor Factory
 func NewDevInfoCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
 	// Build DPPInfoFetcher ahead of time call to GetPTPDeviceInfo will build the other
-	ctx, err := contexts.GetPTPDaemonContext(constructor.Clientset)
+	ctx, err := clients.ContainerOrLocal(constructor.Clientset, getPTPDaemonContext, nil)
 	if err != nil {
 		return &DevInfoCollector{}, fmt.Errorf("failed to create DevInfoCollector: %w", err)
 	}

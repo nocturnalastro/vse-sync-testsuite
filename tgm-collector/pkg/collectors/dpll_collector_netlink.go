@@ -32,7 +32,7 @@ func (dpll *DPLLNetlinkCollector) Start() error {
 		return fmt.Errorf("failed to start dpll netlink collector: %w", err)
 	}
 
-	ctx, ok := dpll.GetContext().(*clients.ContainerCreationExecContext)
+	ctx, ok := dpll.GetContext().(clients.CreateExecContext)
 	if !ok {
 		return fmt.Errorf("dpll netlink collector has an incorrect context type")
 	}
@@ -94,7 +94,7 @@ func (dpll *DPLLNetlinkCollector) CleanUp() error {
 		return fmt.Errorf("failed to cleanly stop dpll collector: %w", err)
 	}
 
-	ctx, ok := dpll.GetContext().(*clients.ContainerCreationExecContext)
+	ctx, ok := dpll.GetContext().(clients.CreateExecContext)
 	if !ok {
 		return fmt.Errorf("dpll netlink collector has an incorrect context type")
 	}
@@ -108,7 +108,17 @@ func (dpll *DPLLNetlinkCollector) CleanUp() error {
 
 // Returns a new DPLLNetlinkCollector from the CollectionConstuctor Factory
 func NewDPLLNetlinkCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
-	ctx, err := contexts.GetNetlinkContext(constructor.Clientset)
+	ctx, err := clients.ContainerOrLocal(
+		constructor.Clientset,
+		func(c *clients.Clientset) (clients.ExecContext, error) {
+			return contexts.GetNetlinkContext(constructor.Clientset)
+		},
+		&clients.ContainerDef{
+			Name:       contexts.NetlinkDebugContainer,
+			Image:      contexts.NetlinkDebugContainerImage,
+			Privilaged: true,
+		},
+	)
 	if err != nil {
 		return &DPLLNetlinkCollector{}, fmt.Errorf("failed to create DPLLNetlinkCollector: %w", err)
 	}
@@ -122,7 +132,7 @@ func NewDPLLNetlinkCollector(constructor *collectorsBase.CollectionConstructor) 
 			constructor.PollInterval,
 			false,
 			constructor.Callback,
-			ctx,
+			ctx.(clients.CreateExecContext),
 		),
 		interfaceName: ptpInterface,
 	}
