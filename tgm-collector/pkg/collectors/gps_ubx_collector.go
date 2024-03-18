@@ -85,7 +85,7 @@ func init() {
 			validations.GPSDID,
 			validations.GNSSStatusID,
 			validations.GNSSProtID,
-			validations.ExpectedModuleName,
+			validations.GNNSSModuleIsCorrect,
 			validations.GNSSFirmwareID,
 			validations.HadGNSSDevices,
 			validations.GNSSAntStatusID,

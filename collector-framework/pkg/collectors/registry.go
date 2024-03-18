@@ -64,7 +64,7 @@ func (reg *CollectorRegistry) register(
 func (reg *CollectorRegistry) GetBuilderFunc(collectorName string) (collectonBuilderFunc, error) {
 	builderFunc, ok := reg.registry[collectorName]
 	if !ok {
-		return nil, fmt.Errorf("not index in registry for collector named %s", collectorName)
+		return nil, fmt.Errorf("no index in collector registry for collector named %s", collectorName)
 	}
 	return builderFunc, nil
 }

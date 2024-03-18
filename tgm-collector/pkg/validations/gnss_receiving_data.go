@@ -56,3 +56,7 @@ func NewGNSSNavStatus(args map[string]any) (validationsBase.Validation, error) {
 	}
 	return &GNSSNavStatus{Status: &gpsDatails.NavStatus}, nil
 }
+
+func init() {
+	validationsBase.RegisterValidation(GNSSStatusID, NewGNSSNavStatus, []string{datafetcher.GPSNavFetcher})
+}

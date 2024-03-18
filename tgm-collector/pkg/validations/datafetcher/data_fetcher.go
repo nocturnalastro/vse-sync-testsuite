@@ -33,7 +33,7 @@ func getDevInfo(clientset *clients.Clientset, args map[string]any) (any, error) 
 	if err != nil {
 		return nil, err
 	}
-	return devInfo, nil
+	return &devInfo, nil
 }
 
 func getGPSVersions(clientset *clients.Clientset, args map[string]any) (any, error) {
@@ -45,7 +45,7 @@ func getGPSVersions(clientset *clients.Clientset, args map[string]any) (any, err
 	if err != nil {
 		return nil, err
 	}
-	return gnssVersions, nil
+	return &gnssVersions, nil
 }
 
 func getGPSNav(clientset *clients.Clientset, args map[string]any) (any, error) {
@@ -57,7 +57,7 @@ func getGPSNav(clientset *clients.Clientset, args map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return gpsDetails, nil
+	return &gpsDetails, nil
 }
 
 func init() {

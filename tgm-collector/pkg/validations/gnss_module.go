@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	ExpectedModuleName             = "ZED-F9T"
-	gnssModuleIsCorrect            = TGMEnvModelPath + "/gnss/"
+	expectedModuleName             = "ZED-F9T"
+	GNNSSModuleIsCorrect           = TGMEnvModelPath + "/gnss/"
 	gnssModuleIsCorrectDescription = "GNSS module is valid"
 )
 
@@ -22,16 +22,16 @@ type GNSSModule struct {
 }
 
 func (gnssModule *GNSSModule) Verify() error {
-	if gnssModule.Module != ExpectedModuleName {
+	if gnssModule.Module != expectedModuleName {
 		return utils.NewInvalidEnvError(
-			fmt.Errorf("reported gnss module is not %s", ExpectedModuleName),
+			fmt.Errorf("reported gnss module is not %s", expectedModuleName),
 		)
 	}
 	return nil
 }
 
 func (gnssModule *GNSSModule) GetID() string {
-	return gnssModuleIsCorrect
+	return GNNSSModuleIsCorrect
 }
 
 func (gnssModule *GNSSModule) GetDescription() string {
@@ -60,5 +60,5 @@ func NewGNSSModule(args map[string]any) (validationsBase.Validation, error) {
 }
 
 func init() {
-	validationsBase.RegisterValidation(gnssModuleIsCorrect, NewGNSSModule, []string{datafetcher.GPSVersionFetcher})
+	validationsBase.RegisterValidation(GNNSSModuleIsCorrect, NewGNSSModule, []string{datafetcher.GPSVersionFetcher})
 }

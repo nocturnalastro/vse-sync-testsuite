@@ -98,13 +98,23 @@ func getValidations(interfaceName string, kubeConfig string) []validationsBase.V
 	validationsNames = append(validationsNames, validations.GeneralValidations()...)
 
 	collectorRegistry := collectors.GetRegistry()
+	log.Info(collectorNamers)
 	for _, cName := range collectorNamers {
 		validationsNames = append(validationsNames, collectorRegistry.GetValidations(cName)...)
 	}
 
 	validationsRegistry := validationsBase.GetRegistry()
+	log.Info(validationsNames)
+	validationFuncs := make([]validationsBase.ValidationConstuctor, 0)
+	fetcherNames := make([]string, 0)
+	for _, vName := range validationsNames {
+		builderFunc, fetchers, err := validationsRegistry.GetBuilderFunc(vName)
+		utils.IfErrorExitOrPanic(err)
+		validationFuncs = append(validationFuncs, builderFunc)
+		fetcherNames = append(fetcherNames, fetchers...)
+	}
 
-	datafetchers, err := validationsRegistry.GetDataFetcher(validationsNames)
+	datafetchers, err := validationsRegistry.GetDataFetcher(fetcherNames)
 	utils.IfErrorExitOrPanic(err)
 
 	clientset, err := clients.GetClientset(kubeConfig)
@@ -114,15 +124,15 @@ func getValidations(interfaceName string, kubeConfig string) []validationsBase.V
 		"clientset":     clientset,
 		"interfaceName": interfaceName,
 	}
-
+	log.Info(datafetchers)
 	for key, df := range datafetchers {
+		log.Info(key)
 		args[key], err = df(clientset, args)
 		utils.IfErrorExitOrPanic(err)
 	}
-
+	log.Info("args", args)
 	validations := make([]validationsBase.Validation, 0)
-	for _, vName := range validationsNames {
-		f, _, _ := validationsRegistry.GetBuilderFunc(vName)
+	for _, f := range validationFuncs {
 		v, err := f(args)
 		utils.IfErrorExitOrPanic(err)
 		validations = append(validations, v)

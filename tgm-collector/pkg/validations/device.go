@@ -55,9 +55,10 @@ func NewDeviceDetails(args map[string]any) (validationsBase.Validation, error) {
 	if !ok {
 		return nil, fmt.Errorf("dev info not set in args")
 	}
+	
 	ptpDevInfo, ok := rawPTPDevInfo.(*devices.PTPDeviceInfo)
 	if !ok {
-		return nil, fmt.Errorf("failed to typecast  dev info")
+		return nil, fmt.Errorf("failed to typecast dev info")
 	}
 
 	v := DeviceDetails{

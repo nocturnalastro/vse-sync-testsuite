@@ -27,7 +27,7 @@ func NewDeviceFirmware(args map[string]any) (validationsBase.Validation, error) 
 	}
 	ptpDevInfo, ok := rawPTPDevInfo.(*devices.PTPDeviceInfo)
 	if !ok {
-		return nil, fmt.Errorf("failed to typecast  dev info")
+		return nil, fmt.Errorf("failed to typecast dev info")
 	}
 
 	parts := strings.Split(ptpDevInfo.FirmwareVersion, " ")
