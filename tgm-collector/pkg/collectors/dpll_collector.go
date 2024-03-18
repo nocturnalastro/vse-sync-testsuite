@@ -10,6 +10,7 @@ import (
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/common"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
@@ -23,7 +24,7 @@ func NewDPLLCollector(constructor *collectorsBase.CollectionConstructor) (collec
 	if err != nil {
 		return &DPLLNetlinkCollector{}, fmt.Errorf("failed to create DPLLCollector: %w", err)
 	}
-	ptpInterface, err := getPTPInterfaceName(constructor)
+	ptpInterface, err := common.GetPTPInterfaceName(constructor.CollectorArgs)
 	if err != nil {
 		return &DPLLNetlinkCollector{}, err
 	}

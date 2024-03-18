@@ -5,13 +5,10 @@ package validations
 import (
 	"fmt"
 	"strings"
-
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
-	log "github.com/sirupsen/logrus"
 )
 
 type ValidationConstuctor func(map[string]any) (Validation, error)
-type dataFetcher func(*clients.Clientset, map[string]any) (any, error)
+type dataFetcher func(map[string]any) (any, error)
 
 type entry struct {
 	fetcher []string
@@ -19,8 +16,8 @@ type entry struct {
 }
 
 type ValidationsRegistry struct {
-	validations    map[string]entry
-	dataCollectors map[string]dataFetcher
+	validations  map[string]entry
+	dataFetchers map[string]dataFetcher
 }
 
 var registry *ValidationsRegistry
@@ -31,17 +28,17 @@ func GetRegistry() *ValidationsRegistry {
 
 func (reg *ValidationsRegistry) registerDataFunc(
 	fetcherName string,
-	builderFunc dataFetcher,
+	fetcherFunc dataFetcher,
 ) {
-	reg.dataCollectors[fetcherName] = builderFunc
+	reg.dataFetchers[fetcherName] = fetcherFunc
 }
 
 func (reg *ValidationsRegistry) registerValidation(
-	collectorName string,
+	validationName string,
 	builderFunc ValidationConstuctor,
 	fetcher []string,
 ) {
-	reg.validations[collectorName] = entry{
+	reg.validations[validationName] = entry{
 		builder: builderFunc,
 		fetcher: fetcher,
 	}
@@ -58,9 +55,8 @@ func (reg *ValidationsRegistry) GetBuilderFunc(validationName string) (Validatio
 func (reg *ValidationsRegistry) GetDataFetcher(fetcherNames []string) (map[string]dataFetcher, error) {
 	missing := make([]string, 0)
 	fetcherMap := make(map[string]dataFetcher)
-	log.Info("dc", reg.dataCollectors)
 	for _, name := range fetcherNames {
-		f, ok := reg.dataCollectors[name]
+		f, ok := reg.dataFetchers[name]
 		if !ok {
 			missing = append(missing, name)
 		} else {
@@ -73,22 +69,27 @@ func (reg *ValidationsRegistry) GetDataFetcher(fetcherNames []string) (map[strin
 	return fetcherMap, nil
 }
 
-func RegisterValidation(collectorName string, builderFunc ValidationConstuctor, fetcher []string) {
-	if registry == nil {
-		registry = &ValidationsRegistry{
-			validations:    make(map[string]entry, 0),
-			dataCollectors: make(map[string]dataFetcher, 0),
-		}
+func createReg() {
+	registry = &ValidationsRegistry{
+		validations:  make(map[string]entry, 0),
+		dataFetchers: make(map[string]dataFetcher, 0),
 	}
-	registry.registerValidation(collectorName, builderFunc, fetcher)
+}
+
+// RegisterValidation
+// Note fetched does not need to have been regisitered before the
+// validation as this would place implicit constraints on
+// import orders as most registractions will happen in init funcs
+func RegisterValidation(validationName string, builderFunc ValidationConstuctor, fetcher []string) {
+	if registry == nil {
+		createReg()
+	}
+	registry.registerValidation(validationName, builderFunc, fetcher)
 }
 
 func RegisterDataFunc(fetcherName string, builderFunc dataFetcher) {
 	if registry == nil {
-		registry = &ValidationsRegistry{
-			validations:    make(map[string]entry, 0),
-			dataCollectors: make(map[string]dataFetcher, 0),
-		}
+		createReg()
 	}
 	registry.registerDataFunc(fetcherName, builderFunc)
 }

@@ -95,3 +95,9 @@ func MakeCompositeInvalidEnvError(errSlice []error) error {
 		MakeCompositeError("The following issues where found", errSlice),
 	)
 }
+
+func MakeCompositeNewRequirementsNotMetError(errSlice []error) error {
+	return NewRequirementsNotMetError(
+		MakeCompositeError("The following issues where found", errSlice),
+	)
+}

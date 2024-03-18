@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/common"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
@@ -126,7 +127,7 @@ func NewDevInfoCollector(constructor *collectorsBase.CollectionConstructor) (col
 		return &DevInfoCollector{}, fmt.Errorf("failed to create DevInfoCollector: %w", err)
 	}
 
-	ptpInterface, err := getPTPInterfaceName(constructor)
+	ptpInterface, err := common.GetPTPInterfaceName(constructor.CollectorArgs)
 	if err != nil {
 		return &DevInfoCollector{}, err
 	}

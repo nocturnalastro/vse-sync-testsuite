@@ -4,9 +4,11 @@ import (
 	"log"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	validationsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/common"
 )
 
 const (
@@ -15,16 +17,32 @@ const (
 	GPSNavFetcher     = "gpsNav"
 )
 
-//nolint:ireturn // this needs to be an interface
-func getDevInfo(clientset *clients.Clientset, args map[string]any) (any, error) {
-	rawInterfaceName, ok := args["interfaceName"]
+func getClientsetFromArgs(args map[string]any) *clients.Clientset {
+	rawClientSet, ok := args["clientset"]
 	if !ok {
 		log.Panic("interfaceName not set in the args")
 	}
-	interfaceName, ok := rawInterfaceName.(string)
+	clientset, ok := rawClientSet.(*clients.Clientset)
 	if !ok {
 		log.Panic("could not convert interfaceName in the args to string")
 	}
+	return clientset
+}
+
+//nolint:ireturn // this needs to be an interface
+func getDevInfo(args map[string]any) (any, error) {
+	clientset := getClientsetFromArgs(args)
+	rawCollectorArgs, ok := args["collectorArgs"]
+	if !ok {
+		log.Panic("collectorArgs not set in the args")
+	}
+	collectorArgs, ok := rawCollectorArgs.(map[string]map[string]any)
+	if !ok {
+		log.Panic("could not convert collectorArgs in the args to map[string]map[string]any")
+	}
+	interfaceName, err := common.GetPTPInterfaceName(collectorArgs)
+	utils.IfErrorExitOrPanic(err)
+
 	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
 	if err != nil {
 		return nil, err
@@ -36,7 +54,8 @@ func getDevInfo(clientset *clients.Clientset, args map[string]any) (any, error) 
 	return &devInfo, nil
 }
 
-func getGPSVersions(clientset *clients.Clientset, args map[string]any) (any, error) {
+func getGPSVersions(args map[string]any) (any, error) {
+	clientset := getClientsetFromArgs(args)
 	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
 	if err != nil {
 		return nil, err
@@ -48,7 +67,9 @@ func getGPSVersions(clientset *clients.Clientset, args map[string]any) (any, err
 	return &gnssVersions, nil
 }
 
-func getGPSNav(clientset *clients.Clientset, args map[string]any) (any, error) {
+func getGPSNav(args map[string]any) (any, error) {
+	clientset := getClientsetFromArgs(args)
+
 	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
 	if err != nil {
 		return nil, err

@@ -15,6 +15,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/validations"
 )
 
 const (
@@ -58,6 +59,54 @@ func NewCollectorRunner(selectedCollectors []string) *CollectorRunner {
 	}
 }
 
+func checkCollectorsValidations(collectorName string, args map[string]any) (map[string]any, error) {
+	collectorReg := collectors.GetRegistry()
+	validationNames := collectorReg.GetValidations(collectorName)
+	validationReg := validations.GetRegistry()
+
+	validationFuncs := make([]validations.ValidationConstuctor, 0)
+	fetcherNames := make([]string, 0)
+	for _, vName := range validationNames {
+		vf, fNames, err := validationReg.GetBuilderFunc(vName)
+		utils.IfErrorExitOrPanic(err)
+		validationFuncs = append(validationFuncs, vf)
+		fetcherNames = append(fetcherNames, fNames...)
+	}
+
+	dataFetchers, err := validationReg.GetDataFetcher(fetcherNames)
+	utils.IfErrorExitOrPanic(err)
+	for key, fetcherFunc := range dataFetchers {
+		if _, ok := args[key]; !ok {
+			args[key], err = fetcherFunc(args)
+			utils.IfErrorExitOrPanic(err)
+		}
+	}
+
+	errs := make([]error, 0)
+	for _, f := range validationFuncs {
+		v, err := f(args)
+		utils.IfErrorExitOrPanic(err)
+		err = v.Verify()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return args, utils.MakeCompositeNewRequirementsNotMetError(errs)
+	}
+	return args, nil
+}
+
+func checkMissingRequirment(err error) {
+	var missingRequirements *utils.RequirementsNotMetError
+	if errors.As(err, &missingRequirements) {
+		// Requirements are missing so don't add the collector to collectorInstance
+		// so that it doesn't get ran
+		log.Warning(err.Error())
+	}
+	utils.IfErrorExitOrPanic(err)
+}
+
 // initialise will call theconstructor for each
 // value in collector name, it will panic if a collector name is not known.
 func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly long function
@@ -84,6 +133,11 @@ func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly l
 
 	registry := collectors.GetRegistry()
 
+	args := map[string]any{
+		"clientset":     clientset,
+		"collectorArgs": collectorArgs,
+	}
+
 	for _, collectorName := range runner.collectorNames {
 		builderFunc, err := registry.GetBuilderFunc(collectorName)
 		if err != nil {
@@ -91,17 +145,13 @@ func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly l
 			continue
 		}
 
+		args, err = checkCollectorsValidations(collectorName, args)
+		checkMissingRequirment(err)
 		newCollector, err := builderFunc(constructor)
-		var missingRequirements *utils.RequirementsNotMetError
-		if errors.As(err, &missingRequirements) {
-			// Requirements are missing so don't add the collector to collectorInstance
-			// so that it doesn't get ran
-			log.Warning(err.Error())
-		} else {
-			utils.IfErrorExitOrPanic(err)
-			runner.collectorInstances[collectorName] = newCollector
-			log.Debugf("Added collector %T, %v", newCollector, newCollector)
-		}
+		checkMissingRequirment(err)
+		runner.collectorInstances[collectorName] = newCollector
+		log.Debugf("Added collector %T, %v", newCollector, newCollector)
+
 	}
 	log.Debugf("Collectors %v", runner.collectorInstances)
 	runner.setOnlyAnnouncers()

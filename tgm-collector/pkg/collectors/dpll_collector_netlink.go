@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/common"
 )
 
 type DPLLNetlinkCollector struct {
@@ -112,7 +113,7 @@ func NewDPLLNetlinkCollector(constructor *collectorsBase.CollectionConstructor) 
 	if err != nil {
 		return &DPLLNetlinkCollector{}, fmt.Errorf("failed to create DPLLNetlinkCollector: %w", err)
 	}
-	ptpInterface, err := getPTPInterfaceName(constructor)
+	ptpInterface, err := common.GetPTPInterfaceName(constructor.CollectorArgs)
 	if err != nil {
 		return &DPLLNetlinkCollector{}, err
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/common"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/validations"
 )
 
@@ -58,7 +59,7 @@ func NewGPSCollector(constructor *collectorsBase.CollectionConstructor) (collect
 	if err != nil {
 		return &GPSCollector{}, fmt.Errorf("failed to create DPLLCollector: %w", err)
 	}
-	ptpInterface, err := getPTPInterfaceName(constructor)
+	ptpInterface, err := common.GetPTPInterfaceName(constructor.CollectorArgs)
 	if err != nil {
 		return &GPSCollector{}, err
 	}
