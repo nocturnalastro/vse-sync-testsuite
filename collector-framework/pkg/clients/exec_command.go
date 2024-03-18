@@ -404,10 +404,6 @@ func (l *LocalExecContext) execCommand(command []string, buffInPtr *bytes.Buffer
 	cmd.Stdout = &stdoutBuffer
 	cmd.Stderr = &stderrBuffer
 	err = cmd.Run()
-	fmt.Println("could not run command: ", err)
-	fmt.Println("stdin:", in)
-	fmt.Println("stdout:", stdoutBuffer.String())
-	fmt.Println("stderr:", stderrBuffer.String())
 	if err != nil {
 		// if there was any error, print it here
 		fmt.Println("could not run command: ", err)
