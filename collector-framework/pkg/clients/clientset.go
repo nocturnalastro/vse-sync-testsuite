@@ -19,8 +19,16 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 )
 
+type TargetType int
+
+const (
+	TargetOCP TargetType = iota
+	TargetLocal
+)
+
 // A Clientset contains clients for the different k8s API groups in one place
 type Clientset struct {
+	Target          TargetType
 	RestConfig      *rest.Config
 	DynamicClient   dynamic.Interface
 	OcpClient       ocpconfig.Interface
@@ -32,8 +40,16 @@ type Clientset struct {
 
 var clientset = Clientset{}
 
-// GetClientset returns the singleton clientset object.
-func GetClientset(kubeconfigPaths ...string) (*Clientset, error) {
+// GetClientset returns clientset object.
+func GetClientset(target TargetType, kubeconfigPaths ...string) (*Clientset, error) {
+	if target == TargetOCP {
+		return GetClusterClientSet(target, kubeconfigPaths...)
+	}
+	return GetLocalClientSet(target)
+}
+
+// GetClusterClientSet returns the singleton clientset object.
+func GetClusterClientSet(target TargetType, kubeconfigPaths ...string) (*Clientset, error) {
 	if clientset.ready {
 		return &clientset, nil
 	}
@@ -43,7 +59,7 @@ func GetClientset(kubeconfigPaths ...string) (*Clientset, error) {
 			fmt.Errorf("must have at least one kubeconfig to initialise a new Clientset"),
 		)
 	}
-	clientset, err := newClientset(kubeconfigPaths...)
+	clientset, err := newClientset(target, kubeconfigPaths...)
 	if err != nil {
 		return nil, utils.NewMissingInputError(
 			fmt.Errorf("failed to create k8s clients holder: %w", err),
@@ -52,9 +68,16 @@ func GetClientset(kubeconfigPaths ...string) (*Clientset, error) {
 	return clientset, nil
 }
 
+// Get an empty ClientSet
+func GetLocalClientSet(target TargetType) (*Clientset, error) {
+	return &Clientset{Target: target, ready: true}, nil
+}
+
 // newClientset will initialise the singleton clientset using provided kubeconfigPath
-func newClientset(kubeconfigPaths ...string) (*Clientset, error) {
+func newClientset(target TargetType, kubeconfigPaths ...string) (*Clientset, error) {
 	log.Infof("creating new Clientset from %v", kubeconfigPaths)
+	clientset.Target = target
+
 	clientset.KubeConfigPaths = kubeconfigPaths
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 

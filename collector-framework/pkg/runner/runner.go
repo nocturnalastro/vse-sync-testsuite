@@ -61,6 +61,7 @@ func NewCollectorRunner(selectedCollectors []string) *CollectorRunner {
 // initialise will call theconstructor for each
 // value in collector name, it will panic if a collector name is not known.
 func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly long function
+	target clients.TargetType,
 	callback callbacks.Callback,
 	clientset *clients.Clientset,
 	pollInterval int,
@@ -73,6 +74,7 @@ func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly l
 	runner.devInfoAnnouceInterval = devInfoAnnouceInterval
 
 	constructor := &collectors.CollectionConstructor{
+		Target:                 target,
 		Callback:               callback,
 		CollectorArgs:          collectorArgs,
 		Clientset:              clientset,
@@ -211,6 +213,7 @@ func (runner *CollectorRunner) cleanUpAll() {
 // then polls them on the correct cadence and
 // finally cleans up the collectors when exiting
 func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long function
+	target clients.TargetType,
 	kubeConfig string,
 	outputFile string,
 	requestedDuration time.Duration,
@@ -219,7 +222,7 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 	useAnalyserJSON bool,
 	collectorArgs map[string]map[string]any,
 ) {
-	clientset, err := clients.GetClientset(kubeConfig)
+	clientset, err := clients.GetClientset(target, kubeConfig)
 	utils.IfErrorExitOrPanic(err)
 
 	outputFormat := callbacks.Raw
@@ -230,6 +233,7 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 	callback, err := callbacks.SetupCallback(outputFile, outputFormat)
 	utils.IfErrorExitOrPanic(err)
 	runner.initialise(
+		target,
 		callback,
 		clientset,
 		pollInterval,

@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/runner"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 )
@@ -38,43 +39,61 @@ func SetCollecterArgsFunc(f CollectorArgFunc) {
 var CollectCmd = &cobra.Command{
 	Use:   "collect",
 	Short: "Run the collector tool",
+	Long:  `Run the collector tool to gather data from your target`,
+}
+
+func runCollector(target clients.TargetType) {
+	collectionRunner := runner.NewCollectorRunner(collectorNames)
+
+	requestedDuration, err := time.ParseDuration(requestedDurationStr)
+	if requestedDuration.Nanoseconds() < 0 {
+		log.Panicf("Requested duration must be positive")
+	}
+	utils.IfErrorExitOrPanic(err)
+
+	collectorArgs := make(map[string]map[string]any)
+	if runFunc != nil {
+		log.Debug("No runFunc function is defined")
+		collectorArgs = runFunc(collectorNames)
+	}
+
+	collectionRunner.Run(
+		target,
+		kubeConfig,
+		outputFile,
+		requestedDuration,
+		pollInterval,
+		devInfoAnnouceInterval,
+		useAnalyserJSON,
+		collectorArgs,
+	)
+}
+
+// CollectOCP represents the collect command
+var CollectOCP = &cobra.Command{
+	Use:   "ocp",
+	Short: "Run the collector tool on OCP",
 	Long:  `Run the collector tool to gather data from your target cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		collectionRunner := runner.NewCollectorRunner(collectorNames)
-
-		requestedDuration, err := time.ParseDuration(requestedDurationStr)
-		if requestedDuration.Nanoseconds() < 0 {
-			log.Panicf("Requested duration must be positive")
-		}
-		utils.IfErrorExitOrPanic(err)
-
-		collectorArgs := make(map[string]map[string]any)
-		if runFunc != nil {
-			log.Debug("No runFunc function is defined")
-			collectorArgs = runFunc(collectorNames)
-		}
-
-		collectionRunner.Run(
-			kubeConfig,
-			outputFile,
-			requestedDuration,
-			pollInterval,
-			devInfoAnnouceInterval,
-			useAnalyserJSON,
-			collectorArgs,
-		)
+		runCollector(clients.TargetOCP)
 	},
 }
 
-func init() { //nolint:funlen // Allow this to get a little long
-	RootCmd.AddCommand(CollectCmd)
+// CollectLocal represents the collect command
+var CollectLocal = &cobra.Command{
+	Use:   "local",
+	Short: "Run the collector tool on local",
+	Long:  `Run the collector tool to gather data from current machine`,
+	Run: func(cmd *cobra.Command, args []string) {
+		runCollector(clients.TargetLocal)
+	},
+}
 
-	AddKubeconfigFlag(CollectCmd)
-	AddOutputFlag(CollectCmd)
-	AddFormatFlag(CollectCmd)
+func addCommonCollectFlags(targetCmd *cobra.Command) {
+	AddOutputFlag(targetCmd)
+	AddFormatFlag(targetCmd)
 
-	CollectCmd.Flags().StringVarP(
+	targetCmd.Flags().StringVarP(
 		&requestedDurationStr,
 		"duration",
 		"d",
@@ -82,7 +101,7 @@ func init() { //nolint:funlen // Allow this to get a little long
 		"A positive duration string sequence of decimal numbers and a unit suffix, such as \"300ms\", \"1.5h\" or \"2h45m\"."+
 			" Valid time units are \"s\", \"m\", \"h\".",
 	)
-	CollectCmd.Flags().IntVarP(
+	targetCmd.Flags().IntVarP(
 		&pollInterval,
 		"rate",
 		"r",
@@ -90,7 +109,7 @@ func init() { //nolint:funlen // Allow this to get a little long
 		"Poll interval for querying the cluster. The value will be polled once every interval. "+
 			"Using --rate 10 will cause the value to be polled once every 10 seconds",
 	)
-	CollectCmd.Flags().IntVarP(
+	targetCmd.Flags().IntVarP(
 		&devInfoAnnouceInterval,
 		"announce",
 		"a",
@@ -99,7 +118,7 @@ func init() { //nolint:funlen // Allow this to get a little long
 	)
 	defaultCollectorNames := make([]string, 0)
 	defaultCollectorNames = append(defaultCollectorNames, runner.All)
-	CollectCmd.Flags().StringSliceVarP(
+	targetCmd.Flags().StringSliceVarP(
 		&collectorNames,
 		"collector",
 		"s",
@@ -112,4 +131,15 @@ func init() { //nolint:funlen // Allow this to get a little long
 			strings.Join(runner.OptionalCollectorNames, ", "),
 		),
 	)
+}
+
+func init() { //nolint:funlen // Allow this to get a little long
+	RootCmd.AddCommand(CollectCmd)
+
+	CollectCmd.AddCommand(CollectOCP)
+	AddKubeconfigFlag(CollectOCP)
+	addCommonCollectFlags(CollectOCP)
+
+	CollectCmd.AddCommand(CollectLocal)
+	addCommonCollectFlags(CollectLocal)
 }

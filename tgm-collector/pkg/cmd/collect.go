@@ -14,6 +14,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/runner"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -32,22 +33,27 @@ var (
 	keepDebugFiles       bool
 )
 
-func init() { //nolint:funlen // Allow this to get a little long
-	AddInterfaceFlag(fCmd.CollectCmd)
-
-	fCmd.CollectCmd.Flags().StringVarP(
+func setCommonFlags(cmd *cobra.Command) {
+	AddInterfaceFlag(cmd)
+	cmd.Flags().StringVarP(
 		&logsOutputFile,
 		"logs-output", "l", "",
 		"Path to the logs output file. This is required when using the logs collector",
 	)
-	fCmd.CollectCmd.Flags().BoolVar(
+	cmd.Flags().BoolVar(
 		&includeLogTimestamps,
 		"log-timestamps", defaultIncludeLogTimestamps,
 		"Specifies if collected logs should include timestamps or not. (default is false)",
 	)
-	fCmd.CollectCmd.Flags().StringVarP(&tempDir, "tempdir", "t", defaultTempDir,
+	cmd.Flags().StringVarP(&tempDir, "tempdir", "t", defaultTempDir,
 		"Directory for storing temp/debug files. Must exist.")
-	fCmd.CollectCmd.Flags().BoolVar(&keepDebugFiles, "keep", defaultKeepDebugFiles, "Keep debug files")
+	cmd.Flags().BoolVar(&keepDebugFiles, "keep", defaultKeepDebugFiles, "Keep debug files")
+
+}
+
+func init() { //nolint:funlen // Allow this to get a little long
+	setCommonFlags(fCmd.CollectOCP)
+	setCommonFlags(fCmd.CollectLocal)
 
 	fCmd.SetCollecterArgsFunc(func(collectorNames []string) map[string]map[string]any {
 		// Check args

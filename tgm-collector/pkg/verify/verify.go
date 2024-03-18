@@ -81,19 +81,24 @@ func getGPSStatusValidation(
 	}
 }
 
-func getValidations(interfaceName, kubeConfig string) []validationsBase.Validation {
+func getClusterChecks(clientset *clients.Clientset) []validationsBase.Validation {
+	return []validationsBase.Validation{
+		validations.NewOperatorVersion(clientset),
+		validations.NewClusterVersion(clientset),
+	}
+}
+
+func getValidations(target clients.TargetType, interfaceName, kubeConfig string) []validationsBase.Validation {
 	checks := make([]validationsBase.Validation, 0)
-	clientset, err := clients.GetClientset(kubeConfig)
+	clientset, err := clients.GetClientset(target, kubeConfig)
 	utils.IfErrorExitOrPanic(err)
 	checks = append(checks, getDevInfoValidations(clientset, interfaceName)...)
 	checks = append(checks, getGPSVersionValidations(clientset)...)
 	checks = append(checks, getGPSStatusValidation(clientset)...)
-	checks = append(
-		checks,
-		validations.NewIsGrandMaster(clientset),
-		validations.NewOperatorVersion(clientset),
-		validations.NewClusterVersion(clientset),
-	)
+	checks = append(checks, validations.NewIsGrandMaster(clientset))
+	if target == clients.TargetOCP {
+		checks = append(checks, getClusterChecks(clientset)...)
+	}
 	return checks
 }
 
@@ -166,8 +171,8 @@ func report(results []*ValidationResult, useAnalyserJSON bool) {
 	}
 }
 
-func Verify(interfaceName, kubeConfig string, useAnalyserJSON bool) {
-	checks := getValidations(interfaceName, kubeConfig)
+func Verify(target clients.TargetType, interfaceName, kubeConfig string, useAnalyserJSON bool) {
+	checks := getValidations(target, interfaceName, kubeConfig)
 
 	results := make([]*ValidationResult, 0)
 	for _, check := range checks {

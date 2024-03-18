@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -34,6 +35,13 @@ type APIContext interface {
 type ExecContext interface {
 	ExecCommand([]string) (string, string, error)
 	ExecCommandStdIn([]string, bytes.Buffer) (string, string, error)
+}
+
+type CreateExecContext interface {
+	ExecCommand([]string) (string, string, error)
+	ExecCommandStdIn([]string, bytes.Buffer) (string, string, error)
+	CreatePodAndWait() error
+	DeletePodAndWait() error
 }
 
 var NewSPDYExecutor = remotecommand.NewSPDYExecutor
@@ -347,7 +355,6 @@ func (c *ContainerCreationExecContext) waitForPodToDelete() error {
 	}
 	return errors.New("pod has not terminated within the timeout")
 }
-
 func (c *ContainerCreationExecContext) DeletePodAndWait() error {
 	err := c.deletePod()
 	if err != nil {
@@ -382,4 +389,48 @@ func NewContainerCreationExecContext(
 		hostNetwork:              hostNetwork,
 		volumes:                  volumes,
 	}
+}
+
+// ContainerExecContext encapsulates the context in which a command is run; the namespace, pod, and container.
+type LocalExecContext struct{}
+
+func (l *LocalExecContext) execCommand(command []string, buffInPtr *bytes.Buffer) (stdout, stderr string, err error) {
+	cmd := exec.Command(strings.Join(command, " "))
+	var stdoutBuffer, stderrBuffer bytes.Buffer
+	cmd.Stdout = &stdoutBuffer
+	cmd.Stderr = &stderrBuffer
+	err = cmd.Run()
+	if err != nil {
+		// if there was any error, print it here
+		fmt.Println("could not run command: ", err)
+	}
+	return stdoutBuffer.String(), stderrBuffer.String(), err
+}
+
+func (l *LocalExecContext) CreatePodAndWait() error {
+	// TODO perhaps use podman here
+	return nil
+}
+func (l *LocalExecContext) DeletePodAndWait() error {
+	// TODO perhaps use podman here
+	return nil
+}
+
+// ExecCommand runs command in a container and returns output buffers
+//
+//nolint:lll,funlen // allow slightly long function definition and allow a slightly long function
+func (l *LocalExecContext) ExecCommand(command []string) (stdout, stderr string, err error) {
+	return l.execCommand(command, nil)
+}
+
+//nolint:lll // allow slightly long function definition
+func (l *LocalExecContext) ExecCommandStdIn(command []string, buffIn bytes.Buffer) (stdout, stderr string, err error) {
+	return l.execCommand(command, &buffIn)
+}
+
+func ContainerOrLocal(target TargetType, ctx ExecContext) ExecContext {
+	if target == TargetOCP {
+		return ctx
+	}
+	return &LocalExecContext{}
 }

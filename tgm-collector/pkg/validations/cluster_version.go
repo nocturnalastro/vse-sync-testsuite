@@ -35,7 +35,10 @@ func getClusterVersion(
 	resource string,
 	client *clients.Clientset,
 ) (string, error) {
-	dynamicClient := dynamic.NewForConfigOrDie(client.RestConfig)
+	dynamicClient, err := dynamic.NewForConfig(client.RestConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to create dynamic client: %w", err)
+	}
 
 	resourceID := schema.GroupVersionResource{
 		Group:    group,

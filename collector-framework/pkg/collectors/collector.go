@@ -23,6 +23,7 @@ type Collector interface {
 
 // A union of all values required to be passed into all constructions
 type CollectionConstructor struct {
+	Target                 clients.TargetType
 	Callback               callbacks.Callback
 	Clientset              *clients.Clientset
 	ErroredPolls           chan PollResult

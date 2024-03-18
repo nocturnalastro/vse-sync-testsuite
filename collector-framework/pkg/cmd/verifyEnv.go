@@ -5,10 +5,11 @@ package cmd
 import (
 	"log"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/spf13/cobra"
 )
 
-type verifyFunc func(kubeconfig string, useAnalyserJSON bool)
+type verifyFunc func(target clients.TargetType, kubeconfig string, useAnalyserJSON bool)
 
 var verify verifyFunc
 
@@ -27,18 +28,45 @@ var VerifyEnvCmd = &cobra.Command{
 	Use:   "verify",
 	Short: "verify the environment is ready for collection",
 	Long:  `verify the environment is ready for collection`,
+}
+
+func runVerify(target clients.TargetType) {
+	if verify == nil {
+		log.Fatal("Verify command was not registered")
+	}
+	verify(target, kubeConfig, useAnalyserJSON)
+}
+
+var VerifyEnvCmdOCP = &cobra.Command{
+	Use:   "ocp",
+	Short: "verify the environment is ready for collection with ocp as a target",
+	Long:  `verify the environment is ready for collection with ocp as a target`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if verify == nil {
-			log.Fatal("Verify command was not registered")
-		}
-		verify(kubeConfig, useAnalyserJSON)
+		runVerify(clients.TargetOCP)
+	},
+}
+
+var VerifyEnvCmdLocal = &cobra.Command{
+	Use:   "local",
+	Short: "verify the environment is ready for collection with a local target",
+	Long:  `verify the environment is ready for collection with a local target`,
+	Run: func(cmd *cobra.Command, args []string) {
+		runVerify(clients.TargetLocal)
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(EnvCmd)
 	EnvCmd.AddCommand(VerifyEnvCmd)
-	AddKubeconfigFlag(VerifyEnvCmd)
-	AddOutputFlag(VerifyEnvCmd)
-	AddFormatFlag(VerifyEnvCmd)
+
+	VerifyEnvCmd.AddCommand(VerifyEnvCmdOCP)
+	AddKubeconfigFlag(VerifyEnvCmdOCP)
+	AddOutputFlag(VerifyEnvCmdOCP)
+	AddFormatFlag(VerifyEnvCmdOCP)
+
+	VerifyEnvCmd.AddCommand(VerifyEnvCmdLocal)
+	AddKubeconfigFlag(VerifyEnvCmdLocal)
+	AddOutputFlag(VerifyEnvCmdLocal)
+	AddFormatFlag(VerifyEnvCmdLocal)
+
 }

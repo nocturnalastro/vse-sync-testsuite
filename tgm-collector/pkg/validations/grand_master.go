@@ -7,7 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
+	"os"
+	"regexp"
 
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
@@ -16,8 +17,10 @@ import (
 const (
 	configuredForGrandMaster            = TGMSyncEnvPath + "/ptp-operator/"
 	configuredForGrandMasterDescription = "Configured for grand master"
-	gmFlag                              = "ts2phc.master 1"
+	localEnvVarTs2Phc                   = "COLLECTORS_LOCAL_TS2PHC_PATH"
 )
+
+var gmFlag = regexp.MustCompile(`ts2phc.master\s+1`)
 
 type GMProfiles struct {
 	Error    error              `json:"fetchError"`
@@ -64,7 +67,7 @@ func (gm *GMProfiles) Verify() error {
 		return gm.Error
 	}
 	for _, profile := range gm.Profiles {
-		if strings.Contains(profile.TS2PhcConf, gmFlag) {
+		if gmFlag.MatchString(profile.TS2PhcConf) {
 			return nil
 		}
 	}
@@ -89,15 +92,31 @@ func (gm *GMProfiles) GetOrder() int {
 }
 
 func NewIsGrandMaster(client *clients.Clientset) *GMProfiles {
-	ptpConfigList, err := fetchPTPConfigs(client)
-	gmProfiles := &GMProfiles{
-		Error: err,
-	}
-	if err != nil {
-		return gmProfiles
-	}
-	for _, item := range ptpConfigList.Items {
-		gmProfiles.Profiles = append(gmProfiles.Profiles, item.Spec.Profiles...)
+	var gmProfiles *GMProfiles
+
+	if client.Target == clients.TargetOCP {
+		ptpConfigList, err := fetchPTPConfigs(client)
+		gmProfiles := &GMProfiles{Error: err}
+		if err != nil {
+			return gmProfiles
+		}
+		for _, item := range ptpConfigList.Items {
+			gmProfiles.Profiles = append(gmProfiles.Profiles, item.Spec.Profiles...)
+		}
+	} else {
+		configPath := os.Getenv(localEnvVarTs2Phc)
+		if configPath == "" {
+			gmProfiles.Error = fmt.Errorf("env var %s was not found", localEnvVarTs2Phc)
+			return gmProfiles
+		}
+		ts2phcConfig, err := os.ReadFile(configPath)
+		if err != nil {
+			gmProfiles.Error = fmt.Errorf("failed to open file: %w", err)
+			return gmProfiles
+		}
+		gmProfiles.Profiles = []PTPConfigProfile{
+			{TS2PhcConf: string(ts2phcConfig)},
+		}
 	}
 	return gmProfiles
 }

@@ -38,7 +38,7 @@ var _ = Describe("NewContainerContext", func() {
 	BeforeEach(func() {
 		clients.ClearClientSet()
 		var err error
-		clientset, err = clients.GetClientset(kubeconfigPath)
+		clientset, err = clients.GetClientset(clients.TargetOCP, kubeconfigPath)
 		if err != nil {
 			panic("failed to get clientset")
 		}
