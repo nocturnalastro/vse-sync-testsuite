@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -78,4 +79,22 @@ func RemoveTempFiles(dir string, filenames []string) {
 	}
 	// os.Remove will not remove a director if has files so its safe to call on the Dir
 	os.Remove(dir)
+}
+
+func ExpandUser(path string) (string, error) {
+	result := path
+	if strings.Contains(path, "~") {
+		usr, err := user.Current()
+		if err != nil {
+			usrErr := fmt.Errorf("Failed to fetch current user so could not resolve path")
+			log.Fatal(usrErr)
+			return result, usrErr
+		}
+		if path == "~" {
+			result = usr.HomeDir
+		} else if strings.HasPrefix(path, "~/") {
+			result = filepath.Join(usr.HomeDir, path[2:])
+		}
+	}
+	return result, nil
 }

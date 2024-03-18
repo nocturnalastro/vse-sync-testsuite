@@ -6,9 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"os/user"
-	"path/filepath"
-	"strings"
 
 	fCmd "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/cmd"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/runner"
@@ -48,7 +45,6 @@ func setCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&tempDir, "tempdir", "t", defaultTempDir,
 		"Directory for storing temp/debug files. Must exist.")
 	cmd.Flags().BoolVar(&keepDebugFiles, "keep", defaultKeepDebugFiles, "Keep debug files")
-
 }
 
 func init() { //nolint:funlen // Allow this to get a little long
@@ -65,16 +61,9 @@ func init() { //nolint:funlen // Allow this to get a little long
 			}
 		}
 
-		if strings.Contains(tempDir, "~") {
-			usr, err := user.Current()
-			if err != nil {
-				log.Fatal("Failed to fetch current user so could not resolve tempdir")
-			}
-			if tempDir == "~" {
-				tempDir = usr.HomeDir
-			} else if strings.HasPrefix(tempDir, "~/") {
-				tempDir = filepath.Join(usr.HomeDir, tempDir[2:])
-			}
+		tempDir, err := utils.ExpandUser(tempDir)
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		if err := os.MkdirAll(tempDir, tempdirPerm); err != nil {
