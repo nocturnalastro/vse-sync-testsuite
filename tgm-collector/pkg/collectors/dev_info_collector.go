@@ -200,5 +200,5 @@ func NewDevInfoCollector(constructor *collectorsBase.CollectionConstructor) (col
 }
 
 func init() {
-	collectorsBase.RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, collectorsBase.Required)
+	collectorsBase.RegisterCollector(DevInfoCollectorName, NewDevInfoCollector, collectorsBase.Required, collectorsBase.RunOnAll)
 }

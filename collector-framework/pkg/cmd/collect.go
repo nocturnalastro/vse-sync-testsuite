@@ -43,7 +43,7 @@ var CollectCmd = &cobra.Command{
 }
 
 func runCollector(target clients.TargetType) {
-	collectionRunner := runner.NewCollectorRunner(collectorNames)
+	collectionRunner := runner.NewCollectorRunner(target, collectorNames)
 
 	requestedDuration, err := time.ParseDuration(requestedDurationStr)
 	if requestedDuration.Nanoseconds() < 0 {

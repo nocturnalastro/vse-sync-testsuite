@@ -46,10 +46,10 @@ type CollectorRunner struct {
 	onlyAnnouncers         bool
 }
 
-func NewCollectorRunner(selectedCollectors []string) *CollectorRunner {
+func NewCollectorRunner(target clients.TargetType, selectedCollectors []string) *CollectorRunner {
 	return &CollectorRunner{
 		collectorInstances:   make(map[string]collectors.Collector),
-		collectorNames:       GetCollectorsToRun(selectedCollectors),
+		collectorNames:       GetCollectorsToRun(target, selectedCollectors),
 		quit:                 getQuitChannel(),
 		pollResults:          make(chan collectors.PollResult, pollResultsQueueSize),
 		erroredPolls:         make(chan collectors.PollResult, pollResultsQueueSize),

@@ -5,20 +5,32 @@ package collectors
 import (
 	"fmt"
 	"log"
+
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 )
 
 type collectonBuilderFunc func(*CollectionConstructor) (Collector, error)
 type collectorInclusionType int
 
+type runTarget int
+type entry struct {
+	name   string
+	target runTarget
+}
+
 const (
 	Required collectorInclusionType = iota
 	Optional
+
+	RunOnAll runTarget = iota
+	RunOnOCP
+	RunOnLocal
 )
 
 type CollectorRegistry struct {
 	registry map[string]collectonBuilderFunc
-	required []string
-	optional []string
+	required []entry
+	optional []entry
 }
 
 var registry *CollectorRegistry
@@ -31,13 +43,15 @@ func (reg *CollectorRegistry) register(
 	collectorName string,
 	builderFunc collectonBuilderFunc,
 	inclusionType collectorInclusionType,
+	target runTarget,
 ) {
 	reg.registry[collectorName] = builderFunc
+	entry := entry{name: collectorName, target: target}
 	switch inclusionType {
 	case Required:
-		reg.required = append(reg.required, collectorName)
+		reg.required = append(reg.required, entry)
 	case Optional:
-		reg.optional = append(reg.optional, collectorName)
+		reg.optional = append(reg.optional, entry)
 	default:
 		log.Panic("Incorrect collector inclusion type")
 	}
@@ -51,21 +65,47 @@ func (reg *CollectorRegistry) GetBuilderFunc(collectorName string) (collectonBui
 	return builderFunc, nil
 }
 
-func (reg *CollectorRegistry) GetRequiredNames() []string {
-	return reg.required
+func fromTargetTypeToRunOn(target clients.TargetType) runTarget {
+	switch target {
+	case clients.TargetOCP:
+		return RunOnOCP
+	case clients.TargetLocal:
+		return RunOnLocal
+	}
+	return RunOnAll
 }
 
-func (reg *CollectorRegistry) GetOptionalNames() []string {
-	return reg.optional
+func getFilteredTargets(entries []entry, target clients.TargetType) []string {
+	names := make([]string, 0)
+	runOn := fromTargetTypeToRunOn(target)
+	for _, entry := range entries {
+		if entry.target == RunOnAll || entry.target == runOn {
+			names = append(names, entry.name)
+		}
+	}
+	return names
 }
 
-func RegisterCollector(collectorName string, builderFunc collectonBuilderFunc, inclusionType collectorInclusionType) {
+func (reg *CollectorRegistry) GetRequiredNames(target clients.TargetType) []string {
+	return getFilteredTargets(reg.required, target)
+}
+
+func (reg *CollectorRegistry) GetOptionalNames(target clients.TargetType) []string {
+	return getFilteredTargets(reg.optional, target)
+}
+
+func RegisterCollector(
+	collectorName string,
+	builderFunc collectonBuilderFunc,
+	inclusionType collectorInclusionType,
+	target runTarget,
+) {
 	if registry == nil {
 		registry = &CollectorRegistry{
 			registry: make(map[string]collectonBuilderFunc, 0),
-			required: make([]string, 0),
-			optional: make([]string, 0),
+			required: make([]entry, 0),
+			optional: make([]entry, 0),
 		}
 	}
-	registry.register(collectorName, builderFunc, inclusionType)
+	registry.register(collectorName, builderFunc, inclusionType, target)
 }

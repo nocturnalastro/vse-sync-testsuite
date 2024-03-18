@@ -70,5 +70,5 @@ func NewPMCCollector(constructor *collectorsBase.CollectionConstructor) (collect
 }
 
 func init() {
-	collectorsBase.RegisterCollector(PMCCollectorName, NewPMCCollector, collectorsBase.Optional)
+	collectorsBase.RegisterCollector(PMCCollectorName, NewPMCCollector, collectorsBase.Optional, collectorsBase.RunOnAll)
 }

@@ -36,5 +36,5 @@ func NewDPLLCollector(constructor *collectorsBase.CollectionConstructor) (collec
 }
 
 func init() {
-	collectorsBase.RegisterCollector(DPLLCollectorName, NewDPLLCollector, collectorsBase.Optional)
+	collectorsBase.RegisterCollector(DPLLCollectorName, NewDPLLCollector, collectorsBase.Optional, collectorsBase.RunOnAll)
 }

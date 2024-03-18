@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 )
 
@@ -38,10 +39,10 @@ func removeDuplicates(arr []string) []string {
 // GetCollectorsToRun returns a slice containing the names of the
 // collectors to be run it will enfore that required colletors
 // are returned
-func GetCollectorsToRun(selectedCollectors []string) []string {
+func GetCollectorsToRun(target clients.TargetType, selectedCollectors []string) []string {
 	registry := collectors.GetRegistry()
-	OptionalCollectorNames = registry.GetOptionalNames()
-	RequiredCollectorNames = registry.GetRequiredNames()
+	OptionalCollectorNames = registry.GetOptionalNames(target)
+	RequiredCollectorNames = registry.GetRequiredNames(target)
 
 	collectorNames := make([]string, 0)
 	collectorNames = append(collectorNames, RequiredCollectorNames...)

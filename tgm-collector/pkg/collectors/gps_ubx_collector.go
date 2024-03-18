@@ -75,5 +75,5 @@ func NewGPSCollector(constructor *collectorsBase.CollectionConstructor) (collect
 }
 
 func init() {
-	collectorsBase.RegisterCollector(GPSCollectorName, NewGPSCollector, collectorsBase.Optional)
+	collectorsBase.RegisterCollector(GPSCollectorName, NewGPSCollector, collectorsBase.Optional, collectorsBase.RunOnAll)
 }
