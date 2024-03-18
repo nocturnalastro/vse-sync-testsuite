@@ -28,18 +28,19 @@ var _ = Describe("Client", func() {
 	When("A clientset is requested with no kubeconfig", func() {
 		It("should return an error", func() {
 			var clientset *clients.Clientset
-			clientset, err := clients.GetClientset(clients.TargetOCP, notAKubeconfigPath)
+			clients.SetRuntimeTarget(clients.TargetOCP)
+			clientset, err := clients.GetClientset(notAKubeconfigPath)
 			Expect(err).To(HaveOccurred())
 			Expect(clientset).To(BeNil())
 
-			clientset, err = clients.GetClientset(clients.TargetOCP, emptyKubeconfigList...)
+			clientset, err = clients.GetClientset(emptyKubeconfigList...)
 			Expect(err).To(HaveOccurred())
 			Expect(clientset).To(BeNil())
 		})
 	})
 	When("A clientset is requested using a valid kubeconfig", func() {
 		It("should be returned", func() {
-			clientset, err := clients.GetClientset(clients.TargetOCP, kubeconfigPath)
+			clientset, err := clients.GetClientset(kubeconfigPath)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(clientset).NotTo(BeNil())
 		})

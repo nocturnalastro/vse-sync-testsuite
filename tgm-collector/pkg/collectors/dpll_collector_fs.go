@@ -5,9 +5,9 @@ package collectors
 import (
 	"fmt"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
 )
 
@@ -54,7 +54,7 @@ func (dpll *DPLLFilesystemCollector) Poll(resultsChan chan collectorsBase.PollRe
 
 // Returns a new DPLLFilesystemCollector from the CollectionConstuctor Factory
 func NewDPLLFilesystemCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
-	ctx, err := clients.ContainerOrLocal(constructor.Clientset, getPTPDaemonContext, nil)
+	ctx, err := contexts.GetPTPDaemonContextOrLocal(constructor.Clientset)
 	if err != nil {
 		return &DPLLFilesystemCollector{}, fmt.Errorf("failed to create DPLLFilesystemCollector: %w", err)
 	}

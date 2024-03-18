@@ -108,17 +108,7 @@ func (dpll *DPLLNetlinkCollector) CleanUp() error {
 
 // Returns a new DPLLNetlinkCollector from the CollectionConstuctor Factory
 func NewDPLLNetlinkCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
-	ctx, err := clients.ContainerOrLocal(
-		constructor.Clientset,
-		func(c *clients.Clientset) (clients.ExecContext, error) {
-			return contexts.GetNetlinkContext(constructor.Clientset)
-		},
-		&clients.ContainerDef{
-			Name:       contexts.NetlinkDebugContainer,
-			Image:      contexts.NetlinkDebugContainerImage,
-			Privilaged: true,
-		},
-	)
+	ctx, err := contexts.GetNetlinkContext(constructor.Clientset)
 	if err != nil {
 		return &DPLLNetlinkCollector{}, fmt.Errorf("failed to create DPLLNetlinkCollector: %w", err)
 	}

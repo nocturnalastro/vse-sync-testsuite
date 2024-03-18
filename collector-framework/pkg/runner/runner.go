@@ -46,10 +46,10 @@ type CollectorRunner struct {
 	onlyAnnouncers         bool
 }
 
-func NewCollectorRunner(target clients.TargetType, selectedCollectors []string) *CollectorRunner {
+func NewCollectorRunner(selectedCollectors []string) *CollectorRunner {
 	return &CollectorRunner{
 		collectorInstances:   make(map[string]collectors.Collector),
-		collectorNames:       GetCollectorsToRun(target, selectedCollectors),
+		collectorNames:       GetCollectorsToRun(clients.GetRuntimeTarget(), selectedCollectors),
 		quit:                 getQuitChannel(),
 		pollResults:          make(chan collectors.PollResult, pollResultsQueueSize),
 		erroredPolls:         make(chan collectors.PollResult, pollResultsQueueSize),
@@ -61,7 +61,6 @@ func NewCollectorRunner(target clients.TargetType, selectedCollectors []string) 
 // initialise will call theconstructor for each
 // value in collector name, it will panic if a collector name is not known.
 func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly long function
-	target clients.TargetType,
 	callback callbacks.Callback,
 	clientset *clients.Clientset,
 	pollInterval int,
@@ -74,7 +73,7 @@ func (runner *CollectorRunner) initialise( //nolint:funlen // allow a slightly l
 	runner.devInfoAnnouceInterval = devInfoAnnouceInterval
 
 	constructor := &collectors.CollectionConstructor{
-		Target:                 target,
+		Target:                 clients.GetRuntimeTarget(),
 		Callback:               callback,
 		CollectorArgs:          collectorArgs,
 		Clientset:              clientset,
@@ -213,7 +212,6 @@ func (runner *CollectorRunner) cleanUpAll() {
 // then polls them on the correct cadence and
 // finally cleans up the collectors when exiting
 func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long function
-	target clients.TargetType,
 	kubeConfig string,
 	outputFile string,
 	requestedDuration time.Duration,
@@ -222,7 +220,7 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 	useAnalyserJSON bool,
 	collectorArgs map[string]map[string]any,
 ) {
-	clientset, err := clients.GetClientset(target, kubeConfig)
+	clientset, err := clients.GetClientset(kubeConfig)
 	utils.IfErrorExitOrPanic(err)
 
 	outputFormat := callbacks.Raw
@@ -233,7 +231,6 @@ func (runner *CollectorRunner) Run( //nolint:funlen // allow a slightly long fun
 	callback, err := callbacks.SetupCallback(outputFile, outputFormat)
 	utils.IfErrorExitOrPanic(err)
 	runner.initialise(
-		target,
 		callback,
 		clientset,
 		pollInterval,

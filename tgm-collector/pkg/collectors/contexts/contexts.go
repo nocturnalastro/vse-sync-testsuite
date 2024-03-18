@@ -20,6 +20,13 @@ const (
 	NetlinkDebugContainerImage = "quay.io/redhat-partner-solutions/dpll-debug:0.1"
 )
 
+func GetPTPDaemonContextOrLocal(clientset *clients.Clientset) (clients.ExecContext, error) {
+	return clients.ContainerOrLocal(clientset, func(c *clients.Clientset) (clients.ExecContext, error) {
+		ctx, err := GetPTPDaemonContext(clientset)
+		return ctx, err
+	})
+}
+
 func GetPTPDaemonContext(clientset *clients.Clientset) (*clients.ContainerExecContext, error) {
 	ctx, err := clients.NewContainerContext(clientset, PTPNamespace, PTPPodNamePrefix, PTPContainer)
 	if err != nil {
@@ -27,8 +34,11 @@ func GetPTPDaemonContext(clientset *clients.Clientset) (*clients.ContainerExecCo
 	}
 	return ctx, nil
 }
+func GetNetlinkContext(clientset *clients.Clientset) (clients.ExecContext, error) {
+	return clients.ContainerOrLocal(clientset, getNetlinkContext)
+}
 
-func GetNetlinkContext(clientset *clients.Clientset) (*clients.ContainerCreationExecContext, error) {
+func getNetlinkContext(clientset *clients.Clientset) (clients.ExecContext, error) {
 	hpt := corev1.HostPathDirectory
 	ctx := clients.NewContainerCreationExecContext(
 		clientset,

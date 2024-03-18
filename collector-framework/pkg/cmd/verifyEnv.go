@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type verifyFunc func(target clients.TargetType, kubeconfig string, useAnalyserJSON bool)
+type verifyFunc func(kubeconfig string, useAnalyserJSON bool)
 
 var verify verifyFunc
 
@@ -30,11 +30,11 @@ var VerifyEnvCmd = &cobra.Command{
 	Long:  `verify the environment is ready for collection`,
 }
 
-func runVerify(target clients.TargetType) {
+func runVerify() {
 	if verify == nil {
 		log.Fatal("Verify command was not registered")
 	}
-	verify(target, kubeConfig, useAnalyserJSON)
+	verify(kubeConfig, useAnalyserJSON)
 }
 
 var VerifyEnvCmdOCP = &cobra.Command{
@@ -42,7 +42,8 @@ var VerifyEnvCmdOCP = &cobra.Command{
 	Short: "verify the environment is ready for collection with ocp as a target",
 	Long:  `verify the environment is ready for collection with ocp as a target`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runVerify(clients.TargetOCP)
+		clients.SetRuntimeTarget(clients.TargetOCP)
+		runVerify()
 	},
 }
 
@@ -51,7 +52,8 @@ var VerifyEnvCmdLocal = &cobra.Command{
 	Short: "verify the environment is ready for collection with a local target",
 	Long:  `verify the environment is ready for collection with a local target`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runVerify(clients.TargetLocal)
+		clients.SetRuntimeTarget(clients.TargetLocal)
+		runVerify()
 	},
 }
 

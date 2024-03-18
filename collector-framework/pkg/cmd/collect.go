@@ -21,7 +21,7 @@ const (
 	defaultDevInfoInterval int    = 60
 )
 
-type CollectorArgFunc func(clients.TargetType, []string) map[string]map[string]any
+type CollectorArgFunc func([]string) map[string]map[string]any
 
 var (
 	requestedDurationStr   string
@@ -42,8 +42,8 @@ var CollectCmd = &cobra.Command{
 	Long:  `Run the collector tool to gather data from your target`,
 }
 
-func runCollector(target clients.TargetType) {
-	collectionRunner := runner.NewCollectorRunner(target, collectorNames)
+func runCollector() {
+	collectionRunner := runner.NewCollectorRunner(collectorNames)
 
 	requestedDuration, err := time.ParseDuration(requestedDurationStr)
 	if requestedDuration.Nanoseconds() < 0 {
@@ -54,11 +54,10 @@ func runCollector(target clients.TargetType) {
 	collectorArgs := make(map[string]map[string]any)
 	if runFunc != nil {
 		log.Debug("No runFunc function is defined")
-		collectorArgs = runFunc(target, collectorNames)
+		collectorArgs = runFunc(collectorNames)
 	}
 
 	collectionRunner.Run(
-		target,
 		kubeConfig,
 		outputFile,
 		requestedDuration,
@@ -75,7 +74,8 @@ var CollectOCP = &cobra.Command{
 	Short: "Run the collector tool on OCP",
 	Long:  `Run the collector tool to gather data from your target cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCollector(clients.TargetOCP)
+		clients.SetRuntimeTarget(clients.TargetOCP)
+		runCollector()
 	},
 }
 
@@ -85,7 +85,8 @@ var CollectLocal = &cobra.Command{
 	Short: "Run the collector tool on local",
 	Long:  `Run the collector tool to gather data from current machine`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCollector(clients.TargetLocal)
+		clients.SetRuntimeTarget(clients.TargetLocal)
+		runCollector()
 	},
 }
 

@@ -5,9 +5,9 @@ package collectors //nolint:dupl // new collector
 import (
 	"fmt"
 
-	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
 )
 
@@ -53,7 +53,7 @@ func (gps *GPSCollector) Poll(resultsChan chan collectorsBase.PollResult, wg *ut
 
 // Returns a new GPSCollector based on values in the CollectionConstructor
 func NewGPSCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
-	ctx, err := clients.ContainerOrLocal(constructor.Clientset, getPTPDaemonContext, nil)
+	ctx, err := contexts.GetPTPDaemonContextOrLocal(constructor.Clientset)
 	if err != nil {
 		return &GPSCollector{}, fmt.Errorf("failed to create DPLLCollector: %w", err)
 	}

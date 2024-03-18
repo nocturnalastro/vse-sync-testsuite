@@ -8,6 +8,7 @@ import (
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/clients"
 	collectorsBase "github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/collectors"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/collector-framework/pkg/utils"
+	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/contexts"
 	"github.com/redhat-partner-solutions/vse-sync-collection-tools/tgm-collector/pkg/collectors/devices"
 )
 
@@ -52,7 +53,7 @@ func (pmc *PMCCollector) Poll(resultsChan chan collectorsBase.PollResult, wg *ut
 
 // Returns a new PMCCollector based on values in the CollectionConstructor
 func NewPMCCollector(constructor *collectorsBase.CollectionConstructor) (collectorsBase.Collector, error) {
-	ctx, err := clients.ContainerOrLocal(constructor.Clientset, getPTPDaemonContext, nil)
+	ctx, err := contexts.GetPTPDaemonContextOrLocal(constructor.Clientset)
 	if err != nil {
 		return &PMCCollector{}, fmt.Errorf("failed to create PMCCollector: %w", err)
 	}

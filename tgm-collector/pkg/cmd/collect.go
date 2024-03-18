@@ -52,9 +52,9 @@ func init() { //nolint:funlen // Allow this to get a little long
 	setCommonFlags(fCmd.CollectOCP)
 	setCommonFlags(fCmd.CollectLocal)
 
-	fCmd.SetCollecterArgsFunc(func(target clients.TargetType, selectedCollectors []string) map[string]map[string]any {
+	fCmd.SetCollecterArgsFunc(func(selectedCollectors []string) map[string]map[string]any {
 		// Check args
-		collectorNames := runner.GetCollectorsToRun(target, selectedCollectors)
+		collectorNames := runner.GetCollectorsToRun(clients.GetRuntimeTarget(), selectedCollectors)
 		for _, c := range collectorNames {
 			if (c == collectors.LogsCollectorName || c == runner.All) && logsOutputFile == "" {
 				utils.IfErrorExitOrPanic(utils.NewMissingInputError(

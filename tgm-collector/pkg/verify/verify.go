@@ -24,16 +24,12 @@ const (
 	antPowerRetries  = 3
 )
 
-func getPTPDaemonContext(c *clients.Clientset) (clients.ExecContext, error) {
-	return contexts.GetPTPDaemonContext(c)
-}
-
 //nolint:ireturn // this needs to be an interface
 func getDevInfoValidations(
 	clientset *clients.Clientset,
 	interfaceName string,
 ) []validationsBase.Validation {
-	ctx, err := clients.ContainerOrLocal(clientset, getPTPDaemonContext, nil)
+	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
 	utils.IfErrorExitOrPanic(err)
 	devInfo, err := devices.GetPTPDeviceInfo(interfaceName, ctx)
 	utils.IfErrorExitOrPanic(err)
@@ -46,7 +42,7 @@ func getDevInfoValidations(
 func getGPSVersionValidations(
 	clientset *clients.Clientset,
 ) []validationsBase.Validation {
-	ctx, err := clients.ContainerOrLocal(clientset, getPTPDaemonContext, nil)
+	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
 	utils.IfErrorExitOrPanic(err)
 	gnssVersions, err := devices.GetGPSVersions(ctx)
 	utils.IfErrorExitOrPanic(err)
@@ -62,7 +58,7 @@ func getGPSVersionValidations(
 func getGPSStatusValidation(
 	clientset *clients.Clientset,
 ) []validationsBase.Validation {
-	ctx, err := clients.ContainerOrLocal(clientset, getPTPDaemonContext, nil)
+	ctx, err := contexts.GetPTPDaemonContextOrLocal(clientset)
 	utils.IfErrorExitOrPanic(err)
 
 	// If we need to do this for more validations then consider a generic
@@ -92,15 +88,15 @@ func getClusterChecks(clientset *clients.Clientset) []validationsBase.Validation
 	}
 }
 
-func getValidations(target clients.TargetType, interfaceName, kubeConfig string) []validationsBase.Validation {
+func getValidations(interfaceName, kubeConfig string) []validationsBase.Validation {
 	checks := make([]validationsBase.Validation, 0)
-	clientset, err := clients.GetClientset(target, kubeConfig)
+	clientset, err := clients.GetClientset(kubeConfig)
 	utils.IfErrorExitOrPanic(err)
 	checks = append(checks, getDevInfoValidations(clientset, interfaceName)...)
 	checks = append(checks, getGPSVersionValidations(clientset)...)
 	checks = append(checks, getGPSStatusValidation(clientset)...)
 	checks = append(checks, validations.NewIsGrandMaster(clientset))
-	if target == clients.TargetOCP {
+	if clients.GetRuntimeTarget() == clients.TargetOCP {
 		checks = append(checks, getClusterChecks(clientset)...)
 	}
 	return checks
@@ -175,8 +171,8 @@ func report(results []*ValidationResult, useAnalyserJSON bool) {
 	}
 }
 
-func Verify(target clients.TargetType, interfaceName, kubeConfig string, useAnalyserJSON bool) {
-	checks := getValidations(target, interfaceName, kubeConfig)
+func Verify(interfaceName, kubeConfig string, useAnalyserJSON bool) {
+	checks := getValidations(interfaceName, kubeConfig)
 
 	results := make([]*ValidationResult, 0)
 	for _, check := range checks {
