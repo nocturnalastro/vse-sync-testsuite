@@ -87,7 +87,6 @@ func ExpandUser(path string) (string, error) {
 		usr, err := user.Current()
 		if err != nil {
 			usrErr := fmt.Errorf("Failed to fetch current user so could not resolve path")
-			log.Fatal(usrErr)
 			return result, usrErr
 		}
 		if path == "~" {
